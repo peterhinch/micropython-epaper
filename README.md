@@ -61,8 +61,10 @@ the board, are symmetrical).
 | 14      | Discharge  | Y4  | X4  | Pin_DISCHARGE |
 
 E-paper 14 way 0.1inch pitch connector as viewed looking down on the pins with the keying
-cutout to the left
+cutout to the left:
 
+|  L |  R |
+|:--:|:--:|
 |  1 |  2 | Red stripe on cable is pin 1
 |  3 |  4 |
 |  5 |  6 |
@@ -80,11 +82,11 @@ import epaper
 a = epaper.Display('Y')
 a.rectangle(20, 20, 150, 150, 3)
 a.show()
-
 ```python
+
 To clear the screen and print a message (assuming we are using an SD card):
 
-```
+```python
 a.clear_screen()
 with a.font('/sd/inconsolata'):
  a.puts("Large font\ntext here")
@@ -193,10 +195,10 @@ full pathnames to source and destination files.
 For the protocol definition see
 [the pyb documentation](http://docs.micropython.org/en/latest/library/pyb.html)
 
-``readblocks()``
-``writeblocks()``
-``sync()``
-``count()``
+``readblocks()``  
+``writeblocks()``  
+``sync()``  
+``count()``  
 
 # Low level methods
 
