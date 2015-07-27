@@ -60,12 +60,14 @@ the board, are symmetrical).
 | 13      | Pwr        | Y3  | X3  | Pin_PANEL_ON  |
 | 14      | Discharge  | Y4  | X4  | Pin_DISCHARGE |
 
+Red stripe on cable is pin 1.
+
 E-paper 14 way 0.1inch pitch connector as viewed looking down on the pins with the keying
 cutout to the left:
 
 |  L |  R |
 |:--:|:--:|
-|  1 |  2 | Red stripe on cable is pin 1
+|  1 |  2 |
 |  3 |  4 |
 |  5 |  6 |
 |  7 |  8 |
