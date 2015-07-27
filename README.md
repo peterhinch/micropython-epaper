@@ -128,20 +128,30 @@ X values from 0 to 263 and Y from 0 to 175 (inclusive).
 The use_flash argument must currently be set False.
 
 ``clear_screen()`` Clears the screen by blanking the screen buffer and calling ``show()``
+
 ``show()`` Displays the contents of the screen buffer.
+
 ``line()`` Draw a line. Arguments X0, Y0, X1, Y1, Width, Black. Defaults: width = 1 pixel,
 Black = True
+
 ``rect()`` Draw a rectangle. Arguments X0, Y0, X1, Y1, Width, Black. Defaults: width = 1 pixel,
 Black = True
+
 ``fillrect()`` Draw a filled rectangle. Arguments X0, Y0, X1, Y1, Black. Defaults: Black = True
+
 ``circle()`` Draw a circle. Arguments x0, y0, r, width, black Defaults: width = 1 pixel,
 Black = True. x0, y0 are the coodinates of the centre, r is the radius.
+
 ``fillcircle()`` Draw a filled circle. Arguments x0, y0, r, black. Defaults: Black = True
+
 ``load_xbm()`` Load a full screen image formatted as an XBM file. Argument sourcefile. This is
 the path to the XBM file.
+
 ``locate()`` This sets the pixel location of the text cursor. Arguments x, y.
+
 ``puts()`` Write a text string to the buffer. Argument s, the string to display. This must
 be called from a ``with`` block that defines the font. For example
+
 ```python```
 with a.font('/sd/timesroman45x46'):
  a.puts("Large font\ntext here")
