@@ -166,9 +166,10 @@ with a.font('/sd/timesroman45x46'):
 ## Font class
 
 This is a Python context manager whose purpose is to define a context for the Display ``puts()``
-method described above. It has no user accessible properties or methods. A font is instantiated
-for the duration of outputting one or more strings. It mus be provided with the path to
-a valid binary font file. See the code sample above.
+method described above ensuring that the font file is closed. It has no user accessible
+properties or methods. A font is instantiated for the duration of outputting one or more
+strings. It mus be provided with the path to a valid binary font file. See the code
+sample above.
 
 In the interests of conserving scarce RAM, fonts are stored in binary files. Individual
 characters are buffered in RAM as required. This contrasts with the conventional approach of
