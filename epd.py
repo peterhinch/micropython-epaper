@@ -1,10 +1,21 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
-# This code is derived from that at https://github.com/embeddedartists/gratis
-# Further sources of information:
-# device data and interface timing http://www.pervasivedisplays.com/products/27
-# COG interface timing http://repaper.org/doc/cog_driving.html
 # Peter Hinch
-# 27th July 2015
+# version 0.2
+# 28th July 2015
+
+# Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#
+#   http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+# express or implied.  See the License for the specific language
+# governing permissions and limitations under the License.
 
 import pyb
 
@@ -410,12 +421,13 @@ class EPD():
                 | ((pixels & 0x03) << 6))
             buf[index] = pixels
             index += 1
-
+    @micropython.native
     def _SPI_send(self, buf):
         Pin_EPD_CS.low()
         self.spi.send(buf)
         Pin_EPD_CS.high()
 
+    @micropython.native
     def _SPI_read(self, buf):
         Pin_EPD_CS.low()
         for x in range(len(buf)):

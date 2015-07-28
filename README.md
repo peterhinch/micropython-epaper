@@ -3,34 +3,37 @@ A driver to enable the Pyboard to access a 2.7 inch e-paper display from
 [Embedded Artists](www.embeddedartists.com/products/displays/lcd_27_epaper.php)
 This can be bought from [Adafruit](www.adafruit.com) and in Europe from
 [Cool Components](www.coolcomponents.co.uk).
+This driver requires a Pyboard with firmware dated 28th July 2015 or later.
 
 ### Introduction
 
 E-paper displays have high contrast and the ability to retain an image with the power
 disconnected. They also have very low power consumption when in use. The Embedded
 Artists model suopports monochrome only, with no grey scale: pixels are either on or off.
-Further the display refresh takes time. The minimum update time defined by the manufacturer's
-data is 3.6 seconds. With the current driver it takes 5.6 S. This is after some
-efforts at optimisation. A time closer to 3.6 S could be achieved by writing key
-methods in Assembler but I have no immediate plans to do this.
+Further the display refresh takes time. The minimum update time defined by explicit delays
+data is 1.6 seconds. With the current driver it takes 3.5 S. This is after some
+efforts at optimisation. A time closer to 1.6 S might be achieved by writing key
+methods in Assembler but I have no immediate plans to do this. It is considerably
+faster than the Arduino code and as fast as the best alternative board I have seen.
 
 The EA display includes an LM75 temperature sensor and a 1MB flash memory chip. The
 driver provides access to the current temperature. The driver does not use the flash
-chip: the current image is buffered in RAM. I intend to provide an option to mount
+chip: the current image is buffered in RAM. The driver has an option to mount
 the flash device to enable it to be used to store data such as images and fonts. This
-is under development and attempts to mount it will crash the Pyboard (the ``use_flash``
-Display constructor argument).
+is the ``use_flash`` Display constructor argument. Setting this False will save over 8K of RAM.
 
 An issue with the EA module is that the Flash memory and the display module use the
 SPI bus in different, incompatible ways. The driver provides a means of arbitration between
-these devices discussed below.
+these devices discussed below. This is transparent to the user of the Display class.
 
 # The driver
 
 The driver enables the display of simple graphics and/or text in any font. The graphics
 capability may readily be extended by the user. This document includes instructions for
 converting Windows system fonts to a form usable by the driver (using free - as in beer - software).
-Such fonts may be edited prior to conversion.
+Such fonts may be edited prior to conversion. If anyone can point me to an open source
+pure Python solution - command line would be fine - I would gladly evaluate it. My own
+attempts at writing one have not been entirely successful to date.
 
 It also support the display of XBM format graphics files. Currently only files corresponding
 to the exact size of the display (264 bits *176 lines) are supported.
@@ -100,7 +103,7 @@ To employ the driver it is only neccessary to import the epaper module and to in
 ``Display`` class. The driver comprises the following modules:
  1. epaper.py The user interface to the display and flash memory
  2. epd.py Low level driver for the EPD (electrophoretic display)
- 3. flash.py Low level driver for the Flash memory (under development)
+ 3. flash.py Low level driver for the flash memory
 
 ### Utilities
 
@@ -112,11 +115,15 @@ usable by the driver.
 This is the user interface to the display, the flash memory and the temperature sensor. Display
 data is buffered. The procedure for displaying text or graphics is to use the various methods
 described below to write text or graphics to the buffer and then to call ``show()`` to
-display the result.
+display the result. The ``show()`` method is the only one to access the EPD module (although
+``clear_screen()`` calls ``show()``). Others affect the buffer alone.
 
 The coodinate system has its origin at the top left corner of the display, with integer
 X values from 0 to 263 and Y from 0 to 175 (inclusive).
 
+In general the graphics code prioritises simplicity over efficiency: e-paper displays are far
+from fast. But I might get round to improving the speed of font rendering which is particularly
+slow when you write a string using a large font. In the meantime be patient. Or offer a patch :)
 
 ## Display class
 
@@ -188,22 +195,31 @@ It also provides the ``temperature`` property.
 
 ### flash.py
 
-This provides an interface to the flash memory. It is intended to support the block protocol
-enabling the flash device to be mounted on the Pyboard filesystem. At the present time for
-reasons which are unclear it doesn't work reliably and should not be used.
+This provides an interface to the flash memory. It supports the block protocol
+enabling the flash device to be mounted on the Pyboard filesystem and used for any
+purpose. There is a compromise in the design of this class between RAM usage and
+flash device wear. The compromise chosen is to buffer the current sector (so that
+writing 8 blocks produces only a single erase/write cycle) and also to buffer
+sector zero. The latter is because sector zero is written after each block write. Not
+only would sector zero be thrashed but the current sector buffering strategy would
+be negated.
 
-This module is under development and contains much unused test code. The block protocol is
-implemented in a particularly dumb fashion in order to simplify the code for test purposes.
-Methods other than those listed below will become protected in due course.
+My knowledge of the FAT filing system is rusty but I suspect that as the device
+fills up with large numbers of files sectors above zero will be hammered. But 4K
+buffers are in short supply on a microcontroller. The anticipated use for the flash
+is for storing a few images and fonts so I think the compromise is reasonable.
+
+I have ideas for an adaptive approach to improve this.
 
 ## File copy
 
 A ``cp(source, dest)`` function is provided as a generic file copy routine. Arguments are
-full pathnames to source and destination files.
+full pathnames to source and destination files. If an OSError is thrown (e.g. by the
+source file not existing) it is up to the caller to handle it.
 
 ## FlashClass
 
-# Methods providing the block protocol (avoid at present)
+# Methods providing the block protocol
 
 For the protocol definition see
 [the pyb documentation](http://docs.micropython.org/en/latest/library/pyb.html)
@@ -213,19 +229,13 @@ For the protocol definition see
 ``sync()``  
 ``count()``  
 
-# Low level methods
+# Other methods
 
-The following low level methods work.
+The following methods are available for general use.
 ``available()`` Returns True if the device is detected and is supported.
 ``info()`` Returns manufacturer and device ID as integers.
-``read()`` Arguments buf, address, count. Defaults: count = None Reads data from a byte address
-to a pre-allocated bytearray. The buffer will be filled unless a byte count less than the buffer
-size is provided. It will also stop if the end of a flash sector (4096 bytes) is reached. the
-caller should prevent this from occurring.
-``write()`` Arguments buf, address. Writes data to a byte address from a bytearray or bytes object.
-The addresses to be written must have been erased (0xff). Addresses can cross block boundaries.
-``sector_erase()`` Argument: address. Erase the flash sector (4096 bytes) containing the byte
-address provided.
+''begin()`` Set up the bus and device. Throws a FlashException if device cannot be validated.
+``end()`` Sync the device then shut down the bus.
 
 # SPI bus arbitration
 
@@ -262,5 +272,20 @@ This assumes Linux but CfontToBinary.py is plain Python and should run on other 
 It's worth noting that though small fonts can be displayed they can be hard to read! Also fonts
 can be subject to copyright restrictions. The provided 24 point [inconsolata](http://scripts.sil.org/OFL)
 font is released under the the SIL Open Font License (OFL). It's a monospaced font: variable
-width fonts are supported and are arguably prettier.
+width fonts are supported and are arguably prettier. I haven't included the standard TimesRoman and Arial
+because of these legal issues. But they do work :)
+
+# Legalities
+
+This software is based on C code released under the Apache licence. Accordingly I have released this
+code under the same licence and included the original copyright headers in the source. If the
+copyright owner has any issues with this I will be happy to accommodate any requests for changes.
+
+# References
+
+This code is derived from that at [Embedded Artists](https://github.com/embeddedartists/gratis)
+with graphics code derived from [ARM mbed](https://developer.mbed.org/users/dreschpe/code/EaEpaper/)
+Further sources of information:
+[device data and interface timing](http://www.pervasivedisplays.com/products/27)
+[COG interface timing](http://repaper.org/doc/cog_driving.html)
 

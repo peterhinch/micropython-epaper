@@ -1,21 +1,27 @@
-# Flash code commented out because it's unreliable
-# Now includes grahics primitives
+# epaper.py Top level module for Embedded Artists' 2.7 inch E-paper Display.
+# Peter Hinch
+# version 0.2
+# 28th July 2015
 
-#from flash import FlashClass
+# Copyright 2015 Peter Hinch
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#
+#   http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+# express or implied.  See the License for the specific language
+# governing permissions and limitations under the License.
+
+# Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
+
+from flash import FlashClass
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
 import pyb, os
-
-# The flash chip and the EPD use the SPI bus in different ways. When a panel is instantiated the flash device is mounted
-# enabling file operations to be done at the REPL and the cp utility below to be used. The show() function needs to access
-# the EPD and hence syncs and unmounts the flash chip and deinits the SPI bus beforehand, re-initialising and mounting it
-# again after the operation is complete.
-
-# Other operations merely affect the EPD's image buffer so don't require the bus.
-
-# File system on flash has become corrupted.
-
-# with a.font('/sd/inconsolata'):
-#     a.puts("Here we go")
 
 NEWLINE = const(10)             # ord('\n')
 
@@ -215,20 +221,6 @@ class Display(object):
                 err += x*2 +1
 
 # ****** Image display ******
-
-    def loadimage(self, sourcefile):            # Load a binary image file
-        try:
-            with open(sourcefile, 'rb') as f:
-                index = 0
-                while True:
-                    buf = f.read(100)
-                    for byte in buf:
-                        self.epd.image[index] = byte
-                        index += 1
-                    if len(buf) < 100 :
-                        break
-        except OSError:
-            print("Can't open " + sourcefile + " for reading")
 
     def load_xbm(self, sourcefile):
         '''
