@@ -1,7 +1,7 @@
 # epaper.py Top level module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.2
-# 28th July 2015
+# version 0.21
+# 29th July 2015 clear_display resets text cursor
 
 # Copyright 2015 Peter Hinch
 #
@@ -74,8 +74,7 @@ class Display(object):
         self.epd = EPD(self.intside)
 
         self.font = Font()
-        self.char_x = 0                         # Text cursor: default top left
-        self.char_y = 0
+        self.locate(0, 0)                       # Text cursor: default top left
         if self.flash_used:
             self.flash = FlashClass(self.intside)
             try:
@@ -104,6 +103,7 @@ class Display(object):
         return self.epd.lm75.temperature
 
     def clear_screen(self):
+        self.locate(0, 0)                       # Reset text cursor
         self.epd.clear_data()
         self.show()
 

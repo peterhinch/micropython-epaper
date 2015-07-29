@@ -198,18 +198,13 @@ It also provides the ``temperature`` property.
 This provides an interface to the flash memory. It supports the block protocol
 enabling the flash device to be mounted on the Pyboard filesystem and used for any
 purpose. There is a compromise in the design of this class between RAM usage and
-flash device wear. The compromise chosen is to buffer the current sector (so that
-writing 8 blocks produces only a single erase/write cycle) and also to buffer
-sector zero. The latter is because sector zero is written after each block write. Not
-only would sector zero be thrashed but the current sector buffering strategy would
-be negated.
+flash device wear. The compromise chosen is to buffer the two most recently written
+sectors: this uses 8K of RAM and substantially reduces the number of erase/write cycles,
+especially for low numbered sectors, compared to a naive unbuffered approach. The
+anticipated use for the flash is for storing rarely changing images and fonts so I
+think the compromise is reasonable.
 
-My knowledge of the FAT filing system is rusty but I suspect that as the device
-fills up with large numbers of files sectors above zero will be hammered. But 4K
-buffers are in short supply on a microcontroller. The anticipated use for the flash
-is for storing a few images and fonts so I think the compromise is reasonable.
-
-I have ideas for an adaptive approach to improve this.
+Buffering also improves erase/write speed.
 
 ## File copy
 

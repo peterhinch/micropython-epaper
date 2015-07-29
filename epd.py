@@ -1,6 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.2
+# version 0.21
+# 29th July 2015 Improved buffering scheme
 # 28th July 2015
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch

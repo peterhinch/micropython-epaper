@@ -53,6 +53,7 @@ FLASH_BP1 = const(0x08)
 FLASH_BP2 = const(0x10)
 
 FLASH_SECTOR_SIZE = const(4096)
+FLASH_SECTOR_MASK = const(0xfff)
 
 # currently supported chip
 FLASH_MFG = 0xef # Winbond
@@ -76,18 +77,22 @@ def cp(source, dest):                           # Utility to copy a file e.g. to
 class FlashException(Exception):
     pass
 
+BUFFER = const(0)                               # Indices into sector descriptor
+DIRTY = const(1)
+
 class FlashClass(object):
     def __init__(self, intside):
         self.spi_no = PINS['SPI_BUS'][intside]
         self.pinCS = pyb.Pin(PINS['FLASH_CS'][intside], mode = pyb.Pin.OUT_PP)
         self.pinCS.high()
-        self.sector0 = bytearray(FLASH_SECTOR_SIZE)
+        self.buff0 = bytearray(FLASH_SECTOR_SIZE)
+        self.buff1 = bytearray(FLASH_SECTOR_SIZE)
         self.current_sector = None              # Current flash sector number for writing
-        self.flashsector = bytearray(FLASH_SECTOR_SIZE)
-        self.verbose = False                    # I think it works now
+        self.prev_sector = None
+        self.buffered_sectors = dict()          # sector : sector descriptor which is [buffer, dirty]
+        self.verbose = False
         self.mountpoint = '/fc'
         self.begin()
-        self._read(self.sector0, 0)             # Sector zero always in buffer
 
     def begin(self):                            # Baud rates of 50MHz supported by chip
         self.pinCS.high()
@@ -130,7 +135,7 @@ class FlashClass(object):
                 buf[index] = self.spi.send_recv(FLASH_NOP)[0]
                 address += 1
                 index += 1
-                if index >= end or address % FLASH_SECTOR_SIZE == 0 :
+                if index >= end or address & FLASH_SECTOR_MASK == 0 :
                     break
             self.pinCS.high()
         self._await()
@@ -185,43 +190,57 @@ class FlashClass(object):
         self._await()
 
     def _readblock(self, blocknum, buf):
-        sector = blocknum // 8
-        index = (blocknum << 9) % FLASH_SECTOR_SIZE # Byte index into current sector
-        if sector == 0:                         # Sector zero always read from cache
-            buf[0 : 512] = self.sector0[index : index +512]
-            return 0
-        self._write_cached_data()               # Ensure flash is up to date
-        self._read(buf, blocknum << 9)
-        return 0
+        sector = blocknum // 8                  # Flash sector: 8 blocks per sector
+        if sector in self.buffered_sectors:     # It is cached: read from cache
+            cache = self.buffered_sectors[sector][BUFFER]
+            index = (blocknum << 9) & FLASH_SECTOR_MASK # Byte index into current sector
+            buf[:] = cache[index : index + 512]
+        else:
+            self._read(buf, blocknum << 9)
+
+    def _writesector(self, sector):             # Erase and write a cached sector if neccessary.
+                                                # Called from sync() so nothing may yet have been written
+        if sector is not None: # and self.buffered_sectors[sector][DIRTY]
+            assert sector in self.buffered_sectors, "Sector not in buffer"
+            if self.buffered_sectors[sector][DIRTY]:
+                self.buffered_sectors[sector][DIRTY] = False # cache will be clean
+                address = sector * FLASH_SECTOR_SIZE
+                self._sector_erase(address)
+                cache = self.buffered_sectors[sector][BUFFER]
+                self._write(cache, address)
+                if self.verbose:
+                    print("Write flash sector ", sector)
 
     def _writeblock(self, blocknum, buf):       # Write a single 512 byte block
         sector = blocknum // 8                  # Flash sector: 8 blocks per sector
-        index = (blocknum << 9) % FLASH_SECTOR_SIZE # Byte index into current sector
-        if sector == 0:                         # Update the cache
-            self.sector0[index : index + 512] = buf
-            return 0
-        if self.current_sector is None :        # No sector is cached
+        index = (blocknum << 9) & FLASH_SECTOR_MASK # Byte index into current sector
+        if sector in self.buffered_sectors:     # It is cached: update cache and return
+            cache = self.buffered_sectors[sector][BUFFER]
+            self.buffered_sectors[sector][DIRTY] = True
+            cache[index : index + 512] = buf
+            return
+        cache = None
+        if self.current_sector is None :        # Program start: No sector is cached
             self.current_sector = sector
-            self._read(self.flashsector, sector * FLASH_SECTOR_SIZE) # Read new sector
-        elif sector != self.current_sector:     # We are going to write to a new sector
-            self._write_cached_data()           # Write out the old sector
-            self.current_sector = sector        # New one is current
-            self._read(self.flashsector, sector * FLASH_SECTOR_SIZE) # Read new sector
-        self.flashsector[index : index + 512] = buf # Update cached data
-        return 0
-
-    def _write_cached_data(self):               # Write out the current cached sector
-        if self.current_sector is not None :    # A sector is cached
-            address = self.current_sector * FLASH_SECTOR_SIZE
-            assert address > 0, "Address is zero"
-            self._sector_erase(address)
-            self._write(self.flashsector, address)
-            if self.verbose:
-                print("Write flash sector ", self.current_sector)
-            self.current_sector = None          # No sector is cached
-        else:
-            if self.verbose:
-                print("write_cached_data: nothing to do")
+            cache = self.buff0                  # allocate buff0
+        elif self.prev_sector is None:          # one sector was cached
+            self.prev_sector = self.current_sector
+            self.current_sector = sector
+            cache = self.buff1                  # allocate buf1
+        if cache is not None:                   # A new buffer was allocated
+            self._read(cache, sector * FLASH_SECTOR_SIZE) # Read new sector
+            self.buffered_sectors[sector] = [cache, True] # put in dict marked dirty
+            cache[index : index + 512] = buf    # apply mods
+            return
+        assert len(self.buffered_sectors) == 2, "Length of dictionary = " + str(len(self.buffered_sectors))
+                                                # Normal running: two sectors already cached. new sector
+        self._writesector(self.prev_sector)     # must be cached. Write out old sector and 
+        cache = self.buffered_sectors.pop(self.prev_sector)[BUFFER] # remove from dict retrieving its buffer
+        self.buffered_sectors[sector] = [cache, True]   # Assign its buffer to new sector, mark dirty
+        self.prev_sector = self.current_sector
+        self.current_sector = sector
+        self._read(cache, sector * FLASH_SECTOR_SIZE) # Read new sector
+        cache[index : index + 512] = buf        # and update
 
 # ******* THE BLOCK PROTOCOL *******
 # In practice MicroPython currently only reads and writes single blocks but the protocol calls
@@ -237,7 +256,6 @@ class FlashClass(object):
             buf[start : start +512] = blockbuf
             start += 512
             blocknum += 1
-        return 0
 
     def writeblocks(self, blocknum, buf):
         buflen = len(buf)
@@ -248,22 +266,12 @@ class FlashClass(object):
             self._writeblock(blocknum, buf[start : start + 512])
             start += 512
             blocknum += 1
-        return 0
 
     def sync(self):
         if self.verbose:
             print("Sync called")
-        self._write_cached_data()
-        self._read(self.flashsector, 0)         # Read a copy of sector zero
-        try:
-            next(z for z in zip(self.flashsector, self.sector0) if z[0] != z[1])
-            self._sector_erase(0)               # Cache differs from copy in device
-            self._write(self.sector0, 0)        # write it out
-            if self.verbose:
-                print("Sector zero updated")
-        except StopIteration:
-            pass                                # Sector zero is up to date
-        return 0
+        for sector in self.buffered_sectors:
+            self._writesector(sector)           # If buffered and dirty
 
     def count(self):
         return 2048 # 2048*512 = 1MByte
