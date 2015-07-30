@@ -1,8 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.2
-# 28th July 2015
+# version 0.22
+# 30th July 2015 Scheduler support added
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -20,14 +20,13 @@
 
 # Sectors are 4096 bytes. 256*4096*8 = 8Mbit: there are 256 sectors but each page takes two
 
-# TODO
-# Use protected methods
-
 # Terminology: a sector is 4096 bytes, the size of sector on the flash device
 # a block is 512 bytes, this is defined in the block protocol
 
 import pyb
 from epd import PINS
+from schedsupport import yield_to_scheduler
+
 # FLASH MX25V8005 8Mbit flash chip command set (50MHz  max clock)
 FLASH_WREN = const(0x06)
 FLASH_WRDI = const(0x04)
@@ -145,6 +144,7 @@ class FlashClass(object):
         self.spi.send(FLASH_RDSR)
         busy = True
         while busy:
+            yield_to_scheduler()
             busy = (FLASH_WIP & self.spi.send_recv(FLASH_NOP)[0]) != 0
         self.pinCS.high()
 
@@ -154,7 +154,7 @@ class FlashClass(object):
         self.spi.send(FLASH_WREN)
         self.pinCS.high()
 
-#    def _write_disable(self):
+#    def _write_disable(self): # Function not used
 #        self._await()
 #        self.pinCS.low()
 #        self.spi.send(FLASH_WRDI)
@@ -166,7 +166,7 @@ class FlashClass(object):
         while index < end :
             self._write_enable()                # Wait for any previous write to complete (upto 3mS) and set enable bit
             self.pinCS.low()
-            self.spi.send(FLASH_PP) # Page program 256 bytes max
+            self.spi.send(FLASH_PP)             # Page program 256 bytes max
             self.spi.send((address >> 16) & 0xff)
             self.spi.send((address >> 8) & 0xff)
             self.spi.send(address & 0xff)
@@ -199,17 +199,14 @@ class FlashClass(object):
             self._read(buf, blocknum << 9)
 
     def _writesector(self, sector):             # Erase and write a cached sector if neccessary.
-                                                # Called from sync() so nothing may yet have been written
-        if sector is not None: # and self.buffered_sectors[sector][DIRTY]
-            assert sector in self.buffered_sectors, "Sector not in buffer"
-            if self.buffered_sectors[sector][DIRTY]:
-                self.buffered_sectors[sector][DIRTY] = False # cache will be clean
-                address = sector * FLASH_SECTOR_SIZE
-                self._sector_erase(address)
-                cache = self.buffered_sectors[sector][BUFFER]
-                self._write(cache, address)
-                if self.verbose:
-                    print("Write flash sector ", sector)
+        if self.buffered_sectors[sector][DIRTY]:# Caller ensures it is actually cached
+            self.buffered_sectors[sector][DIRTY] = False # cache will be clean
+            address = sector * FLASH_SECTOR_SIZE
+            self._sector_erase(address)
+            cache = self.buffered_sectors[sector][BUFFER]
+            self._write(cache, address)
+            if self.verbose:
+                print("Write flash sector ", sector)
 
     def _writeblock(self, blocknum, buf):       # Write a single 512 byte block
         sector = blocknum // 8                  # Flash sector: 8 blocks per sector
@@ -232,9 +229,8 @@ class FlashClass(object):
             self.buffered_sectors[sector] = [cache, True] # put in dict marked dirty
             cache[index : index + 512] = buf    # apply mods
             return
-        assert len(self.buffered_sectors) == 2, "Length of dictionary = " + str(len(self.buffered_sectors))
                                                 # Normal running: two sectors already cached. new sector
-        self._writesector(self.prev_sector)     # must be cached. Write out old sector and 
+        self._writesector(self.prev_sector)     # needs to be cached. Write out old sector and 
         cache = self.buffered_sectors.pop(self.prev_sector)[BUFFER] # remove from dict retrieving its buffer
         self.buffered_sectors[sector] = [cache, True]   # Assign its buffer to new sector, mark dirty
         self.prev_sector = self.current_sector
@@ -247,7 +243,7 @@ class FlashClass(object):
 # for multiple blocks so these functions aim to provide that capability
     def readblocks(self, blocknum, buf):
         buflen = len(buf)
-        if buflen == 512:
+        if buflen == 512:                       # skip creating the blockbuf
             return self._readblock(blocknum, buf)
         start = 0
         blockbuf = bytearray[512]
@@ -259,8 +255,6 @@ class FlashClass(object):
 
     def writeblocks(self, blocknum, buf):
         buflen = len(buf)
-        if buflen == 512:
-            return self._writeblock(blocknum, buf)
         start = 0
         while buflen - start  > 0 :
             self._writeblock(blocknum, buf[start : start + 512])
@@ -271,7 +265,7 @@ class FlashClass(object):
         if self.verbose:
             print("Sync called")
         for sector in self.buffered_sectors:
-            self._writesector(sector)           # If buffered and dirty
+            self._writesector(sector)           # Only if dirty
 
     def count(self):
         return 2048 # 2048*512 = 1MByte

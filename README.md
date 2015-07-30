@@ -78,6 +78,9 @@ cutout to the left:
 | 11 | 12 |
 | 13 | 14 |
 
+The SPI bus is not designed for driving long wires. This driver uses it at upto 21MHz so keep
+them short!
+
 # Getting started
 
 Assuming the device is connected on the 'Y' side simply cut and paste this at the REPL.
@@ -104,6 +107,7 @@ To employ the driver it is only neccessary to import the epaper module and to in
  1. epaper.py The user interface to the display and flash memory
  2. epd.py Low level driver for the EPD (electrophoretic display)
  3. flash.py Low level driver for the flash memory
+ 4. schedsupport.py Provides hooks for users wishing to use cooperative multi threading.
 
 # Utilities
 
@@ -134,8 +138,6 @@ slow when you write a string using a large font. In the meantime be patient. Or 
  2. ``use_flash`` Mounts the flash drive as /fc for general use. Default False.
  3. ``side`` This must be 'X' or 'Y' depending on the side of the Pyboard in use. Default 'Y'.
 
-The use_flash argument must currently be set False.
-
 ``clear_screen()`` Clears the screen by blanking the screen buffer and calling ``show()``
 
 ``show()`` Displays the contents of the screen buffer.
@@ -165,6 +167,12 @@ be called from a ``with`` block that defines the font. For example
 with a.font('/sd/timesroman45x46'):
  a.puts("Large font\ntext here")
 ```
+
+``setpixel()`` Set or clear a pixel. Arguments ``x, y, black``. Checks for and ignores pixels not
+within the display boundary.
+
+``setpixelfast()`` Set or clear a pixel. Arguments ``x, y, black``. Caller must check bounds. Uses
+the viper emitter for maximum speed.
 
 ### Properties
 
@@ -229,8 +237,11 @@ For the protocol definition see
 The following methods are available for general use.
 ``available()`` Returns True if the device is detected and is supported.
 ``info()`` Returns manufacturer and device ID as integers.
-''begin()`` Set up the bus and device. Throws a FlashException if device cannot be validated.
+``begin()`` Set up the bus and device. Throws a FlashException if device cannot be validated.
 ``end()`` Sync the device then shut down the bus.
+
+Other than for debugging there is no need to call ``available()``: the constructor will throw
+a ``FlashException`` if it fails to communicate with and correctly identify the chip.
 
 ### SPI bus arbitration
 
@@ -244,6 +255,16 @@ with ``self.flash.end()``. The EPD class is a Python context manager and its app
 
 On completion of the ``with`` block the display hardware is shut down in an orderly fashion and
 the bus de-initilased. The flash device is then re-initilased and re-mounted.
+
+# Module schedsupport.py
+
+This provides two trivial functions, ``delay_ms()`` which evaluates to ``pyb.delay`` and
+``yield_to_scheduler`` which returns immediately. The intention is to allow these to be replaced
+(by editing the code or at runtime) with functions which yield to the scheduler. In the case
+of ``delay_ms()`` the function must not return until at least the passed number of mS have elapsed.
+
+If using multi threading avoid letting other threads use the same SPI and I2C buses used by
+this device.
 
 # Fonts
 

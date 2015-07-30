@@ -1,6 +1,7 @@
 # epaper.py Top level module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.21
+# version 0.22
+# 30th July 2015 Scheduler support, optimisations and code improvements
 # 29th July 2015 clear_display resets text cursor
 
 # Copyright 2015 Peter Hinch
@@ -21,6 +22,7 @@
 
 from flash import FlashClass
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
+from schedsupport import yield_to_scheduler
 import pyb, os
 
 NEWLINE = const(10)             # ord('\n')
@@ -107,16 +109,27 @@ class Display(object):
         self.epd.clear_data()
         self.show()
 
-    def setpixel(self, x, y, black = True):
+    @micropython.native
+    def setpixel(self, x, y, black):            # 41uS. Clips to borders
         if y < 0 or y >= LINES_PER_DISPLAY or x < 0 or x >= BITS_PER_LINE :
             return
-        byte, bit = divmod(x, 8)
-        omask = 1 << bit
-        index = byte + y *BYTES_PER_LINE
+        image = self.epd.image
+        omask = 1 << (x & 0x07)
+        index = (x >> 3) + y *BYTES_PER_LINE
         if black:
-            self.epd.image[index] |= omask
+            image[index] |= omask
         else:
-            self.epd.image[index] &= (omask ^ 0xff)
+            image[index] &= (omask ^ 0xff)
+
+    @micropython.viper
+    def setpixelfast(self, x: int, y: int, black: int): # 27uS. Caller checks bounds
+        image = ptr8(self.epd.image)
+        omask = 1 << (x & 0x07)
+        index = (x >> 3) + y * 33 #BYTES_PER_LINE
+        if black:
+            image[index] |= omask
+        else:
+            image[index] &= (omask ^ 0xff)
 
 # ****** Simple graphics support ******
 
@@ -152,6 +165,7 @@ class Display(object):
                     di += dx_x2 - dy_x2
                     x0 += dx_sym
             self.setpixel(x0, y0, black)
+        yield_to_scheduler()
 
     def line(self, x0, y0, x1, y1, width =1, black = True): # Draw line
         if abs(x1 - x0) > abs(y1 - y0): # < 45 degrees
@@ -179,8 +193,9 @@ class Display(object):
         for x in range(x0, x1):
             for y in range(y0, y1):
                 self.setpixel(x, y, black)
+            yield_to_scheduler()
 
-    def _circle(self, x0, y0, r, black = True): # Sinle pixel circle
+    def _circle(self, x0, y0, r, black = True): # Single pixel circle
         x = -r
         y = 0
         err = 2 -2*r
@@ -198,6 +213,7 @@ class Display(object):
             if (e2 > x):
                 x += 1
                 err += x*2 +1
+            yield_to_scheduler()
 
     def circle(self, x0, y0, r, width =1, black = True): # Draw circle
         for r in range(r, r -width, -1):
@@ -230,30 +246,29 @@ class Display(object):
                           str(LINES_PER_DISPLAY), " lines of ", str(BYTES_PER_LINE), " bytes per line)"))
         try:
             with open(sourcefile, 'r') as f:
-                started = False
-                finished = False
-                while not started:
-                    line = f.readline()
-                    start = line.find('{')
-                    if start >= 0:
-                        line = line[start +1:]
-                        started = True
-                        if line.isspace():
-                            line = f.readline()
-                if started:
-                    index = 0
-                    while not finished:
+                phase = 0
+                index = 0
+                for line in f:
+                    yield_to_scheduler()
+                    if phase == 0:
+                        start = line.find('{')
+                        if start >= 0:
+                            line = line[start +1:]
+                            phase =1
+                    if phase == 1:
+                        if not line.isspace():
+                            phase = 2
+                    if phase ==2:
                         end = line.find('}')
                         if end >=0 :
                             line = line[:end]
-                            finished = True
+                            phase = 3
                         hexnums = line.split(',')
                         if hexnums[0] != '':
                             for hexnum in [x for x in hexnums if not x.isspace()]:
                                 self.epd.image[index] = int(hexnum, 16)
                                 index += 1
-                        line = f.readline()
-                if not started or not finished or index != BYTES_PER_LINE * LINES_PER_DISPLAY:
+                if phase != 3 or index != BYTES_PER_LINE * LINES_PER_DISPLAY:
                     print(errmsg)
         except OSError:
             print("Can't open " + sourcefile + " for reading")
@@ -276,11 +291,12 @@ class Display(object):
         fontbuf = self.font.fontfile.read(self.font.bytes_per_ch)
                                                 # write out the character
         for bit_vert in range(self.font.bits_vert):   # for each vertical line
+            yield_to_scheduler()
             for bit_horiz in range(self.font.bits_horiz): #  horizontal line
-                bytenum, bitnum = divmod(bit_vert, 8)
+                bytenum = bit_vert >> 3
+                bit = 1 << (bit_vert & 0x07)    # Faster than divmod
                 fontbyte = fontbuf[self.font.bytes_vert * bit_horiz + bytenum +1]
-                bit = 1 << bitnum
-                self.setpixel(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
+                self.setpixelfast(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
         self.char_x += fontbuf[0]               # width of current char
 
     def _putc(self, value):                     # print char

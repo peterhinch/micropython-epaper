@@ -1,8 +1,8 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.21
-# 29th July 2015 Improved buffering scheme
-# 28th July 2015
+# version 0.22
+
+# 30th July 2015 Scheduler support
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -19,6 +19,7 @@
 # governing permissions and limitations under the License.
 
 import pyb
+from schedsupport import yield_to_scheduler, delay_ms # Optional hooks for multi-threading
 
 EPD_OK = const(0) # error codes
 EPD_UNSUPPORTED_COG = const(1)
@@ -96,9 +97,6 @@ class EPD():
         self.lm75 = LM75(i2c_no)
         self.image = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY)
         self.linebuf = bytearray(BYTES_PER_LINE * 2 + BYTES_PER_SCAN)
-                                                # Multi thread support: replace the following functions
-        self.yield_to_scheduler = lambda : None # Brief yield
-        self.delay = pyb.delay                  # yield for a minimum of N milliseconds
 
 # USER INTERFACE
 
@@ -125,23 +123,23 @@ class EPD():
                                                 # Baud rate: data sheet says 20MHz max. Pyboard's closest (21MHz) was unreliable
         self.spi = pyb.SPI(self.spi_no, pyb.SPI.MASTER, baudrate=10500000, polarity=1, phase=1, bits=8) # 5250000 10500000 supported by Pyboard
         self._SPI_send(b'\x00\x00')
-        self.delay(5)
+        delay_ms(5)
         Pin_PANEL_ON.high()
-        self.delay(10)
+        delay_ms(10)
 
         Pin_RESET.high()
         Pin_BORDER.high()
         Pin_EPD_CS.high()
-        self.delay(5)
+        delay_ms(5)
 
         Pin_RESET.low()
-        self.delay(5)
+        delay_ms(5)
 
         Pin_RESET.high()
-        self.delay(5)
+        delay_ms(5)
 
         while Pin_BUSY.value() == 1:            # wait for COG to become ready
-            self.delay(1)
+            delay_ms(1)
 
         # read the COG ID 
         cog_id = self._SPI_read(b'\x71\x00') & 0x0f
@@ -186,21 +184,21 @@ class EPD():
         self._SPI_send(b'\x70\x03')
         self._SPI_send(b'\x72\x00')
 
-        self.delay(5)
+        delay_ms(5)
         dc_ok = False
         for i in range(4):
             # charge pump positive voltage on - VGH/VDL on
             self._SPI_send(b'\x70\x05')
             self._SPI_send(b'\x72\x01')
-            self.delay(240)
+            delay_ms(240)
             # charge pump negative voltage on - VGL/VDL on
             self._SPI_send(b'\x70\x05')
             self._SPI_send(b'\x72\x03')
-            self.delay(40)
+            delay_ms(40)
             # charge pump Vcom on - Vcom driver on
             self._SPI_send(b'\x70\x05')
             self._SPI_send(b'\x72\x0f')
-            self.delay(40)
+            delay_ms(40)
             # check DC/DC
             self._SPI_send(b'\x70\x0f')
             dc_state = self._SPI_read(b'\x73\x00') & 0x40
@@ -242,7 +240,7 @@ class EPD():
         self._dummy_line()
 
         Pin_BORDER.low()
-        self.delay(200)
+        delay_ms(200)
         Pin_BORDER.high()
 
         # check DC/DC
@@ -264,7 +262,7 @@ class EPD():
         # power off charge pump neg voltage
         self._SPI_send(b'\x70\x05')
         self._SPI_send(b'\x72\x01')
-        self.delay(240)
+        delay_ms(240)
         # power off all charge pumps
         self._SPI_send(b'\x70\x05')
         self._SPI_send(b'\x72\x00')
@@ -274,7 +272,7 @@ class EPD():
         # discharge internal on
         self._SPI_send(b'\x70\x04')
         self._SPI_send(b'\x72\x83')
-        self.delay(30)
+        delay_ms(30)
         self._power_off()
 
     def _power_off(self):                       # turn of power and all signals
@@ -282,7 +280,7 @@ class EPD():
         Pin_PANEL_ON.low()
         Pin_BORDER.low()
         self._SPI_send(b'\x00\x00')
-        self.delay(1)                           # was pyb.udelay(10)
+        delay_ms(1)                           # was pyb.udelay(10)
         self.spi.deinit()
         Pin_SCK.init(mode = pyb.Pin.OUT_PP)
         Pin_SCK.low()
@@ -293,7 +291,7 @@ class EPD():
 
         # pulse discharge pin
         Pin_DISCHARGE.high()
-        self.delay(150)
+        delay_ms(150)
         Pin_DISCHARGE.low()
 
 # One frame of data is the number of lines * rows. For example:
@@ -303,7 +301,7 @@ class EPD():
         t_start = pyb.millis()
         t_elapsed = -1
         while t_elapsed < stage_time: 
-            self.yield_to_scheduler()
+            yield_to_scheduler()
             for line in range(LINES_PER_DISPLAY -1, -1, -1): 
                 self._line_fixed(line, fixed_value, set_voltage_limit = False)
             t_elapsed = pyb.elapsed_millis(t_start)
@@ -336,7 +334,7 @@ class EPD():
         for n in range(repeat):
             block_begin = 0
             block_end = 0
-            self.yield_to_scheduler()
+            yield_to_scheduler()
             while block_begin < LINES_PER_DISPLAY:
                 block_end += step
                 block_begin = max(block_end - block, 0)
