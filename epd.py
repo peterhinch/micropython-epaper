@@ -1,8 +1,6 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.22
-
-# 30th July 2015 Scheduler support
+# version 0.23
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -19,7 +17,6 @@
 # governing permissions and limitations under the License.
 
 import pyb
-from schedsupport import yield_to_scheduler, delay_ms # Optional hooks for multi-threading
 
 EPD_OK = const(0) # error codes
 EPD_UNSUPPORTED_COG = const(1)
@@ -123,23 +120,23 @@ class EPD():
                                                 # Baud rate: data sheet says 20MHz max. Pyboard's closest (21MHz) was unreliable
         self.spi = pyb.SPI(self.spi_no, pyb.SPI.MASTER, baudrate=10500000, polarity=1, phase=1, bits=8) # 5250000 10500000 supported by Pyboard
         self._SPI_send(b'\x00\x00')
-        delay_ms(5)
+        pyb.delay(5)
         Pin_PANEL_ON.high()
-        delay_ms(10)
+        pyb.delay(10)
 
         Pin_RESET.high()
         Pin_BORDER.high()
         Pin_EPD_CS.high()
-        delay_ms(5)
+        pyb.delay(5)
 
         Pin_RESET.low()
-        delay_ms(5)
+        pyb.delay(5)
 
         Pin_RESET.high()
-        delay_ms(5)
+        pyb.delay(5)
 
         while Pin_BUSY.value() == 1:            # wait for COG to become ready
-            delay_ms(1)
+            pyb.delay(1)
 
         # read the COG ID 
         cog_id = self._SPI_read(b'\x71\x00') & 0x0f
@@ -184,21 +181,21 @@ class EPD():
         self._SPI_send(b'\x70\x03')
         self._SPI_send(b'\x72\x00')
 
-        delay_ms(5)
+        pyb.delay(5)
         dc_ok = False
         for i in range(4):
             # charge pump positive voltage on - VGH/VDL on
             self._SPI_send(b'\x70\x05')
             self._SPI_send(b'\x72\x01')
-            delay_ms(240)
+            pyb.delay(240)
             # charge pump negative voltage on - VGL/VDL on
             self._SPI_send(b'\x70\x05')
             self._SPI_send(b'\x72\x03')
-            delay_ms(40)
+            pyb.delay(40)
             # charge pump Vcom on - Vcom driver on
             self._SPI_send(b'\x70\x05')
             self._SPI_send(b'\x72\x0f')
-            delay_ms(40)
+            pyb.delay(40)
             # check DC/DC
             self._SPI_send(b'\x70\x0f')
             dc_state = self._SPI_read(b'\x73\x00') & 0x40
@@ -240,7 +237,7 @@ class EPD():
         self._dummy_line()
 
         Pin_BORDER.low()
-        delay_ms(200)
+        pyb.delay(200)
         Pin_BORDER.high()
 
         # check DC/DC
@@ -262,7 +259,7 @@ class EPD():
         # power off charge pump neg voltage
         self._SPI_send(b'\x70\x05')
         self._SPI_send(b'\x72\x01')
-        delay_ms(240)
+        pyb.delay(240)
         # power off all charge pumps
         self._SPI_send(b'\x70\x05')
         self._SPI_send(b'\x72\x00')
@@ -272,7 +269,7 @@ class EPD():
         # discharge internal on
         self._SPI_send(b'\x70\x04')
         self._SPI_send(b'\x72\x83')
-        delay_ms(30)
+        pyb.delay(30)
         self._power_off()
 
     def _power_off(self):                       # turn of power and all signals
@@ -280,7 +277,7 @@ class EPD():
         Pin_PANEL_ON.low()
         Pin_BORDER.low()
         self._SPI_send(b'\x00\x00')
-        delay_ms(1)                           # was pyb.udelay(10)
+        pyb.delay(1)                           # was pyb.udelay(10)
         self.spi.deinit()
         Pin_SCK.init(mode = pyb.Pin.OUT_PP)
         Pin_SCK.low()
@@ -291,7 +288,7 @@ class EPD():
 
         # pulse discharge pin
         Pin_DISCHARGE.high()
-        delay_ms(150)
+        pyb.delay(150)
         Pin_DISCHARGE.low()
 
 # One frame of data is the number of lines * rows. For example:
@@ -301,7 +298,6 @@ class EPD():
         t_start = pyb.millis()
         t_elapsed = -1
         while t_elapsed < stage_time: 
-            yield_to_scheduler()
             for line in range(LINES_PER_DISPLAY -1, -1, -1): 
                 self._line_fixed(line, fixed_value, set_voltage_limit = False)
             t_elapsed = pyb.elapsed_millis(t_start)
@@ -334,7 +330,6 @@ class EPD():
         for n in range(repeat):
             block_begin = 0
             block_end = 0
-            yield_to_scheduler()
             while block_begin < LINES_PER_DISPLAY:
                 block_end += step
                 block_begin = max(block_end - block, 0)

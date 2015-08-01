@@ -107,7 +107,6 @@ To employ the driver it is only neccessary to import the epaper module and to in
  1. epaper.py The user interface to the display and flash memory
  2. epd.py Low level driver for the EPD (electrophoretic display)
  3. flash.py Low level driver for the flash memory
- 4. schedsupport.py Provides hooks for users wishing to use cooperative multi threading.
 
 # Utilities
 
@@ -180,10 +179,10 @@ the viper emitter for maximum speed.
 
 ## Font class
 
-This is a Python context manager whose purpose is to define a context for the Display ``puts()``
+This is a Python context manager whose purpose is to define a context for the ``Display`` ``puts()``
 method described above, ensuring that the font file is closed. It has no user accessible
 properties or methods. A font is instantiated for the duration of outputting one or more
-strings. It mus be provided with the path to a valid binary font file. See the code
+strings. It must be provided with the path to a valid binary font file. See the code
 sample above.
 
 In the interests of conserving scarce RAM, fonts are stored in binary files. Individual
@@ -194,7 +193,7 @@ in short supply, hence the design decision. This is transparent to the user.
 # Module epd.py
 
 This provides the low level interface to the EPD display module. It provides two methods
-accesed by the epaper module:
+accesed by the ``epaper`` module:
 
 ``showdata()`` Displays the current text buffer  
 ``clear_data()`` Clears the buffer without displaying it.
@@ -212,7 +211,8 @@ especially for low numbered sectors, compared to a naive unbuffered approach. Th
 anticipated use for the flash is for storing rarely changing images and fonts so I
 think the compromise is reasonable.
 
-Buffering also improves erase/write speed.
+Buffering also improves perceived performance by reducing the number of erase/write
+cycles.
 
 ## File copy
 
@@ -235,9 +235,9 @@ For the protocol definition see
 ### Other methods
 
 The following methods are available for general use.
-``available()`` Returns True if the device is detected and is supported.
-``info()`` Returns manufacturer and device ID as integers.
-``begin()`` Set up the bus and device. Throws a FlashException if device cannot be validated.
+``available()`` Returns True if the device is detected and is supported.  
+``info()`` Returns manufacturer and device ID as integers.  
+``begin()`` Set up the bus and device. Throws a FlashException if device cannot be validated.  
 ``end()`` Sync the device then shut down the bus.
 
 Other than for debugging there is no need to call ``available()``: the constructor will throw
@@ -255,16 +255,6 @@ with ``self.flash.end()``. The EPD class is a Python context manager and its app
 
 On completion of the ``with`` block the display hardware is shut down in an orderly fashion and
 the bus de-initilased. The flash device is then re-initilased and re-mounted.
-
-# Module schedsupport.py
-
-This provides two trivial functions, ``delay_ms()`` which evaluates to ``pyb.delay`` and
-``yield_to_scheduler`` which returns immediately. The intention is to allow these to be replaced
-(by editing the code or at runtime) with functions which yield to the scheduler. In the case
-of ``delay_ms()`` the function must not return until at least the passed number of mS have elapsed.
-
-If using multi threading avoid letting other threads use the same SPI and I2C buses used by
-this device.
 
 # Fonts
 
@@ -304,5 +294,5 @@ with graphics code derived from [ARM mbed](https://developer.mbed.org/users/dres
 
 Further sources of information:  
 [device data and interface timing](http://www.pervasivedisplays.com/products/27)  
-[COG interface timing](http://repaper.org/doc/cog_driving.html)
-
+[COG interface timing](http://repaper.org/doc/cog_driving.html)  
+[Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf)

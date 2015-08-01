@@ -1,8 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.22
-# 30th July 2015 Scheduler support added
+# version 0.23
+# 1st Aug 2015
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -25,7 +25,6 @@
 
 import pyb
 from epd import PINS
-from schedsupport import yield_to_scheduler
 
 # FLASH MX25V8005 8Mbit flash chip command set (50MHz  max clock)
 FLASH_WREN = const(0x06)
@@ -144,7 +143,6 @@ class FlashClass(object):
         self.spi.send(FLASH_RDSR)
         busy = True
         while busy:
-            yield_to_scheduler()
             busy = (FLASH_WIP & self.spi.send_recv(FLASH_NOP)[0]) != 0
         self.pinCS.high()
 

@@ -1,7 +1,7 @@
 # epaper.py Top level module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.22
-# 30th July 2015 Scheduler support, optimisations and code improvements
+# version 0.23
+# 1 Aug 2015 Optimisations and code improvements
 # 29th July 2015 clear_display resets text cursor
 
 # Copyright 2015 Peter Hinch
@@ -22,7 +22,6 @@
 
 from flash import FlashClass
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
-from schedsupport import yield_to_scheduler
 import pyb, os
 
 NEWLINE = const(10)             # ord('\n')
@@ -165,7 +164,6 @@ class Display(object):
                     di += dx_x2 - dy_x2
                     x0 += dx_sym
             self.setpixel(x0, y0, black)
-        yield_to_scheduler()
 
     def line(self, x0, y0, x1, y1, width =1, black = True): # Draw line
         if abs(x1 - x0) > abs(y1 - y0): # < 45 degrees
@@ -193,7 +191,6 @@ class Display(object):
         for x in range(x0, x1):
             for y in range(y0, y1):
                 self.setpixel(x, y, black)
-            yield_to_scheduler()
 
     def _circle(self, x0, y0, r, black = True): # Single pixel circle
         x = -r
@@ -213,7 +210,6 @@ class Display(object):
             if (e2 > x):
                 x += 1
                 err += x*2 +1
-            yield_to_scheduler()
 
     def circle(self, x0, y0, r, width =1, black = True): # Draw circle
         for r in range(r, r -width, -1):
@@ -249,7 +245,6 @@ class Display(object):
                 phase = 0
                 index = 0
                 for line in f:
-                    yield_to_scheduler()
                     if phase == 0:
                         start = line.find('{')
                         if start >= 0:
@@ -291,7 +286,6 @@ class Display(object):
         fontbuf = self.font.fontfile.read(self.font.bytes_per_ch)
                                                 # write out the character
         for bit_vert in range(self.font.bits_vert):   # for each vertical line
-            yield_to_scheduler()
             for bit_horiz in range(self.font.bits_horiz): #  horizontal line
                 bytenum = bit_vert >> 3
                 bit = 1 << (bit_vert & 0x07)    # Faster than divmod
