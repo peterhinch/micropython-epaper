@@ -1,8 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.23
-# 1st Aug 2015
+# version 0.3
+# 3rd Aug 2015
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -88,7 +88,6 @@ class FlashClass(object):
         self.current_sector = None              # Current flash sector number for writing
         self.prev_sector = None
         self.buffered_sectors = dict()          # sector : sector descriptor which is [buffer, dirty]
-        self.verbose = False
         self.mountpoint = '/fc'
         self.begin()
 
@@ -203,8 +202,6 @@ class FlashClass(object):
             self._sector_erase(address)
             cache = self.buffered_sectors[sector][BUFFER]
             self._write(cache, address)
-            if self.verbose:
-                print("Write flash sector ", sector)
 
     def _writeblock(self, blocknum, buf):       # Write a single 512 byte block
         sector = blocknum // 8                  # Flash sector: 8 blocks per sector
@@ -260,8 +257,6 @@ class FlashClass(object):
             blocknum += 1
 
     def sync(self):
-        if self.verbose:
-            print("Sync called")
         for sector in self.buffered_sectors:
             self._writesector(sector)           # Only if dirty
 

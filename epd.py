@@ -1,6 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.23
+# version 0.3
+# 3rd Aug 2015
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -98,11 +99,9 @@ class EPD():
 # USER INTERFACE
 
     def showdata(self):                         # Call from a with block
-        t = pyb.millis()
         self._frame_data_13(EPD_inverse)
         self._frame_stage2() # 1.6S
         self._frame_data_13(EPD_normal)
-        return pyb.elapsed_millis(t)            # Update time for optimisation
 
     def clear_data(self):
         for x, _ in enumerate(self.image):

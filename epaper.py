@@ -1,7 +1,7 @@
 # epaper.py Top level module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.23
-# 1 Aug 2015 Optimisations and code improvements
+# version 0.3
+# 3rd Aug 2015 Optimisations and code improvements
 # 29th July 2015 clear_display resets text cursor
 
 # Copyright 2015 Peter Hinch
@@ -65,8 +65,7 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, testing = False, use_flash = False, side = 'Y'):
-        self.testing = testing
+    def __init__(self, use_flash = False, side = 'Y'):
         self.flash_used = use_flash
         try:
             self.intside = {'x':1, 'X':1, 'y':0,'Y':0}[side]
@@ -86,14 +85,12 @@ class Display(object):
 
     def show(self):
         if self.flash_used:
-            self.flash.sync()
+            self.flash.sync()                   # sync, umount flash, shut it down and disable SPI
             pyb.mount(None, self.flash.mountpoint)
-            self.flash.end()                    # sync and disable SPI
+            self.flash.end()
                                                 # EPD functions which access the display electronics must be
         with self.epd as epd:                   # called from a with block to ensure proper startup & shutdown
             time = epd.showdata()
-            if self.testing:
-                print("Elapsed time:", time/1000)
 
         if self.flash_used:
             self.flash.begin()                  # Re-enable flash
