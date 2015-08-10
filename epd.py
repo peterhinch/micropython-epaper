@@ -104,8 +104,7 @@ class EPD():
         self._frame_data_13(EPD_normal)
 
     def clear_data(self):
-        for x, _ in enumerate(self.image):
-            self.image[x] = 0
+        self.image[:] = bytes((0 for x in range(len(self.image))))
 
 # END OF USER INTERFACE
 

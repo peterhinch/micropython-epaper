@@ -46,7 +46,7 @@ as follows. I fitted the Pyboard with socket headers and wired the display cable
 14 way pin header, enabling it to be plugged in to either side of the Pyboard (the two
 sides, labelled X and Y on the board, are symmetrical).
 
-| display | signal     |  X  |  Y  | Python name   |
+| display | signal     |  Y  |  X  | Python name   |
 |:-------:|:----------:|:---:|:---:|:-------------:|
 |  1      | GND        | GND | GND |               |
 |  2      | 3V3        | 3V3 | 3V3 |               |
@@ -298,6 +298,6 @@ with graphics code derived from [ARM mbed](https://developer.mbed.org/users/dres
 
 Further sources of information:  
 [device data and interface timing](http://www.pervasivedisplays.com/products/27)  
-[COG interface timing](http://repaper.org/doc/cog_driving.html)  
+[COG interface timing](http://www.pervasivedisplays.com/_literature_220873/COG_Driver_Interface_Timing_for_small_size_G2_V231)  
 [Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf)
 [RePaper](http://repaper.org/doc/cog_driving.html)
