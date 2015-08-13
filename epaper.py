@@ -65,13 +65,13 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, use_flash = False, side = 'Y'):
+    def __init__(self, use_flash = False, side = 'Y', pin_pwr = None, pwr_on = None):
         self.flash_used = use_flash
         try:
             self.intside = {'x':1, 'X':1, 'y':0,'Y':0}[side]
         except KeyError:
             raise ValueError("Side must be 'X' or 'Y'")
-        self.epd = EPD(self.intside)
+        self.epd = EPD(self.intside, pin_pwr, pwr_on)
 
         self.font = Font()
         self.locate(0, 0)                       # Text cursor: default top left
@@ -90,7 +90,7 @@ class Display(object):
             self.flash.end()
                                                 # EPD functions which access the display electronics must be
         with self.epd as epd:                   # called from a with block to ensure proper startup & shutdown
-            time = epd.showdata()
+            epd.showdata()
 
         if self.flash_used:
             self.flash.begin()                  # Re-enable flash
@@ -98,7 +98,7 @@ class Display(object):
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
-        return self.epd.lm75.temperature
+        return self.epd.temperature
 
     def clear_screen(self):
         self.locate(0, 0)                       # Reset text cursor

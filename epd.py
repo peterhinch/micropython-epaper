@@ -88,13 +88,22 @@ class EPDException(Exception):
     pass
 
 class EPD():
-    def __init__(self, intside):
+    def __init__(self, intside, pin_pwr, pwr_on):
         pinsetup(intside)                       # Create global pins
         self.spi_no = PINS['SPI_BUS'][intside]
-        i2c_no = PINS['I2C_BUS'][intside]
-        self.lm75 = LM75(i2c_no)
+        self.i2c_no = PINS['I2C_BUS'][intside]
         self.image = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY)
         self.linebuf = bytearray(BYTES_PER_LINE * 2 + BYTES_PER_SCAN)
+        self.pwrctrl = False
+        if pin_pwr is not None and pwr_on is not None:
+            self.pwrctrl = True
+            self.pwr_on = pwr_on
+            self.pwr_off = pwr_on ^ 1
+            self.pwrpin = pyb.Pin(pin_pwr, mode= pyb.Pin.OUT_PP)
+            self.pwrpin.value(self.pwr_off)
+        if not self.pwrctrl:
+            self.lm75 = LM75(self.i2c_no)       # LM75 is instantiated permanently
+
 
 # USER INTERFACE
 
@@ -105,6 +114,16 @@ class EPD():
 
     def clear_data(self):
         self.image[:] = bytes((0 for x in range(len(self.image))))
+
+    @property
+    def temperature(self):                      # return temperature as integer in Celsius
+        if self.pwrctrl:
+            self.pwrpin.value(self.pwr_on)
+            pyb.delay(10) # warm up the tubes
+            self.lm75 = LM75(self.i2c_no)       # Instantiate LM75 for the duration of power
+        return self.lm75.temperature
+        if self.pwrctrl:
+            self.pwrpin.value(self.pwr_off)
 
 # END OF USER INTERFACE
 
@@ -215,7 +234,7 @@ class EPD():
         # stage1: repeat, step, block
         # stage2: repeat, t1, t2
         # stage3: repeat, step, block
-        temperature = self.lm75.temperature
+        temperature = self.temperature
         if temperature < 10 :
             self.compensation = {'stage1_repeat':2, 'stage1_step':8, 'stage1_block':64,
                                  'stage2_repeat':4, 'stage2_t1':392, 'stage2_t2':392,
@@ -288,6 +307,8 @@ class EPD():
         Pin_DISCHARGE.high()
         pyb.delay(150)
         Pin_DISCHARGE.low()
+        if self.pwrctrl:                        # Micropower: turn off the panel
+            self.pwrpin.value(self.pwr_off)
 
 # One frame of data is the number of lines * rows. For example:
 # The 2.7” frame of data is 176 lines * 264 dots.

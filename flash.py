@@ -1,8 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.3
-# 3rd Aug 2015
+# version 0.4
+# 11th Aug 2015
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -10,7 +10,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at:
 #
-#   http:#www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -18,7 +18,8 @@
 # express or implied.  See the License for the specific language
 # governing permissions and limitations under the License.
 
-# Sectors are 4096 bytes. 256*4096*8 = 8Mbit: there are 256 sectors but each page takes two
+# Rev D of the Pervasive Displays module uses a Winbond W25Q32 chip: an 8 MB Flash chip
+# Sectors are 4096 bytes. 1024*4096*8 = 32Mbit: there are 1024 sectors
 
 # Terminology: a sector is 4096 bytes, the size of sector on the flash device
 # a block is 512 bytes, this is defined in the block protocol
@@ -26,7 +27,7 @@
 import pyb
 from epd import PINS
 
-# FLASH MX25V8005 8Mbit flash chip command set (50MHz  max clock)
+# Winbond W25Q32 command set
 FLASH_WREN = const(0x06)
 FLASH_WRDI = const(0x04)
 FLASH_RDID = const(0x9f)
@@ -261,4 +262,9 @@ class FlashClass(object):
             self._writesector(sector)           # Only if dirty
 
     def count(self):
-        return 2048 # 2048*512 = 1MByte
+        return 8192 # 8192*512 = 4MByte
+
+# ******* UTILITY TO ENABLE INITIAL FORMAT *******
+# See README. This wipes the filesystem!
+    def low_level_format(self):
+        self._sector_erase(0)
