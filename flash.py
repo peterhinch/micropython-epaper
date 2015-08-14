@@ -1,7 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.4
+# version 0.41
+# 14th Aug 2015 Support for power control
 # 11th Aug 2015
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
@@ -21,11 +22,13 @@
 # Rev D of the Pervasive Displays module uses a Winbond W25Q32 chip: an 8 MB Flash chip
 # Sectors are 4096 bytes. 1024*4096*8 = 32Mbit: there are 1024 sectors
 
-# Terminology: a sector is 4096 bytes, the size of sector on the flash device
-# a block is 512 bytes, this is defined in the block protocol
+# Terminology:
+# a sector is 4096 bytes, the size of data unit on the flash device for erasure
+# a page is 256 bytes and is the minimum data unit which may be written to the device
+# a block is 512 bytes, this is defined in the block protocol for FAT
 
-import pyb
-from epd import PINS
+import pyb 
+from panel import Panel, PINS
 
 # Winbond W25Q32 command set
 FLASH_WREN = const(0x06)
@@ -68,22 +71,23 @@ def cp(source, dest):                           # Utility to copy a file e.g. to
                     break
 
 # FlashClass
-# The flash and epaper deviices use different SPI modes. You must issue objFlash.flash_begin() before attempting to access
-# the device, and objFlash.flash_end() afterwards
-# All address method arguments are byte addresses. Hence to erase block 100, issue instance.sector_erase(100*4096)
-# Sectors must be erased (to 0xff) before they can be written. Writing is done in 256 byte pages. The write method
-# handles this transparently.
+# The flash and epaper deviices use different SPI modes. You must issue objFlash.begin() before attempting to access
+# the device, and objFlash.end() afterwards
+# All address method arguments are byte addresses. Hence to erase block 100, issue objFlash.sector_erase(100*4096)
+# Sectors must be erased (to 0xff) before they can be written. Writing is done in 256 byte pages. The _write() method
+# handles paging transparently but does assume target pages are erased.
 class FlashException(Exception):
     pass
 
 BUFFER = const(0)                               # Indices into sector descriptor
 DIRTY = const(1)
 
-class FlashClass(object):
-    def __init__(self, intside):
+class FlashClass(Panel):
+    def __init__(self, intside, pin_pwr = None, pwr_on = None):
+        super().__init__(pin_pwr, pwr_on)       # if power is controlled it will be off.
         self.spi_no = PINS['SPI_BUS'][intside]
         self.pinCS = pyb.Pin(PINS['FLASH_CS'][intside], mode = pyb.Pin.OUT_PP)
-        self.pinCS.high()
+#        self.pinCS.high()
         self.buff0 = bytearray(FLASH_SECTOR_SIZE)
         self.buff1 = bytearray(FLASH_SECTOR_SIZE)
         self.current_sector = None              # Current flash sector number for writing
@@ -94,14 +98,16 @@ class FlashClass(object):
 
     def begin(self):                            # Baud rates of 50MHz supported by chip
         self.pinCS.high()
-        self.spi = pyb.SPI(self.spi_no, pyb.SPI.MASTER, baudrate=21000000, polarity=1, phase=1, bits=8) # default mode 3: Polarity 1 Phase 0 MSB first
-        if not self._available():
+        self.poweron()                          # Apply power if controlled
+        self.spi = pyb.SPI(self.spi_no, pyb.SPI.MASTER, baudrate = 21000000, polarity = 1, phase = 1, bits = 8)
+        if not self._available():               # Includes 1mS wakeup delay
             raise FlashException("Unsupported flash device")
 
     def end(self):                              # Shutdown before using EPD
         self.sync()
         self.pinCS.high()
         self.spi.deinit()
+        self.poweroff()                         # Remove power if controlled
 
     def _available(self):                       # return True if the chip is supported
         self.info()                             # initial read to reset the chip
@@ -152,13 +158,13 @@ class FlashClass(object):
         self.spi.send(FLASH_WREN)
         self.pinCS.high()
 
-#    def _write_disable(self): # Function not used
+#    def _write_disable(self): # Unused function
 #        self._await()
 #        self.pinCS.low()
 #        self.spi.send(FLASH_WRDI)
 #        self.pinCS.high()
 
-    def _write(self, buf, address):             # Write data in 256 byte blocks
+    def _write(self, buf, address):             # Write data in 256 byte pages
         end = len(buf)
         index = 0
         while index < end :
@@ -174,7 +180,7 @@ class FlashClass(object):
                 index += 1
                 if index >= end or address & 0xff == 0 :
                     break
-            self.pinCS.high() # Kick off the write
+            self.pinCS.high()                   # Kick off the write
         self._await()
 
     def _sector_erase(self, address):

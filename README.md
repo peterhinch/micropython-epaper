@@ -11,10 +11,10 @@ E-paper displays have high contrast and the ability to retain an image with the 
 disconnected. They also have very low power consumption when in use. The Embedded
 Artists model suopports monochrome only, with no grey scale: pixels are either on or off.
 Further the display refresh takes time. The minimum update time defined by explicit delays
-data is 1.6 seconds. With the current driver it takes 3.5 S. This is after some
-efforts at optimisation. A time closer to 1.6 S might be achieved by writing key
-methods in Assembler but I have no immediate plans to do this. It is considerably
-faster than the Arduino code and as fast as the best alternative board I have seen.
+is 1.6 seconds. With the current driver it takes 3.5 S. This after some efforts at optimisation.
+A time closer to 1.6 S might be achieved by writing key methods in Assembler but I have no
+plans to do this. It is considerably faster than the Arduino code and as fast as the best
+alternative board I have seen.
 
 The EA rev D display includes an LM75 temperature sensor and a 4MB flash memory chip. The
 driver provides access to the current temperature. The driver does not use the flash
@@ -25,6 +25,11 @@ is the ``use_flash`` Display constructor argument. Setting this False will save 
 An issue with the EA module is that the Flash memory and the display module use the
 SPI bus in different, incompatible ways. The driver provides a means of arbitration between
 these devices discussed below. This is transparent to the user of the Display class.
+
+One application area for e-paper displays is in ultra low power applications. The Pyboard
+in standby mode consumes about 30uA. To avoid adding to this an external circuit is required
+to turn off the power to the display and any other peripherals before entering standby. the
+driver provides support for such use: see Micropower Support below.
 
 # The driver
 
@@ -88,7 +93,7 @@ Assuming the device is connected on the 'Y' side simply cut and paste this at th
 ```python
 import epaper
 a = epaper.Display('Y')
-a.rectangle(20, 20, 150, 150, 3)
+a.rect(20, 20, 150, 150, 3)
 a.show()
 ```
 
@@ -107,6 +112,7 @@ To employ the driver it is only neccessary to import the epaper module and to in
  1. epaper.py The user interface to the display and flash memory
  2. epd.py Low level driver for the EPD (electrophoretic display)
  3. flash.py Low level driver for the flash memory
+ 4. panel.py Support for optional external power control (see below)
 
 Note that the flash drive will need to be formatted before first use: see the flash.py doc below.
 
@@ -187,6 +193,13 @@ within the display boundary.
 
 ``setpixelfast()`` Set or clear a pixel. Arguments ``x, y, black``. Caller must check bounds. Uses
 the viper emitter for maximum speed.
+
+The following methods are intended to support micropower operation using external power control hardware.
+They should not be used in normal opertion as in this cse the flash device is mounted automatically.
+
+``mountflash()`` Power up the panel and mount the flash device.
+
+``umountflash()`` Unmount the flash memory and power down the panel.
 
 ### Properties
 
@@ -295,6 +308,18 @@ with ``self.flash.end()``. The EPD class is a Python context manager and its app
 On completion of the ``with`` block the display hardware is shut down in an orderly fashion and
 the bus de-initilased. The flash device is then re-initilased and re-mounted.
 
+# Module panel.py
+
+This provides the base class for the ``EPD`` and ``FlashClass`` classes. Its purpose is to support optional
+external hardware for micropower operation. Its methods do nothing unless the Display object
+was instantiated with ``pin_pwr`` and ``pwr_on`` arguments. It provides the Pyboard pin definitions
+for use by the panel.
+
+### Methods
+
+``poweron()`` Turns the power control hardware on, delays 10mS.  
+``poweroff()`` Turns the power control hardware off.
+
 # Fonts
 
 As explained above, the driver requires fonts to be provided in a specific binary file format. This
@@ -312,7 +337,7 @@ $ ./CfontToBinary.py -i trebuchet.c -o trebuchet
 ```
 The latter file can then be copied to the Pyboard and used by the driver.
 
-This assumes Linux but CfontToBinary.py is plain Python and should run on other platforms. 
+This assumes Linux but CfontToBinary.py is plain Python3 and should run on other platforms. 
 
 Although small fonts are displayed accurately they can be hard to read! Note that fonts
 can be subject to copyright restrictions. The provided font samples are released under open licences.
@@ -320,9 +345,7 @@ can be subject to copyright restrictions. The provided font samples are released
 # Micropower Support
 
 This enables the display panel to be turned off to conserve power in applications where power consumption
-is critical. You must supply an external circuit to perform this. For absolute minimum consumption
-it is neccessary to switch both Vcc and Vdd to the panel. This is because the Pyboard has pullup
-resistors on the SPI buses which cause 150uA to flow if only Vdd is switched.
+is critical and assumes external hardware to ahieve this. Hardware issues are discussed in micropower/micropower.md
 
 Given a hardware controller capable of switching the power to the display (it uses about 10mA
 during transitions) your code should instantiate the ``Display`` object with the pin ID that
@@ -330,15 +353,17 @@ operates your controller and its sense (the bit value required to turn the displ
 the display (and temperature sensor) as normal. The ``Display`` object will use the hardware to turn
 the display on and off as necessary.
 
-Note that this option precludes the use of the flash memory since the entire panel is powered down
-except for the duration of display updates: normal operation with flash enabled has the flash memory
-mounted continuously which is obviously incompatible with power switching. However the LM75 is
-supported: ``Display.temperature`` powers up the LM75 for the duration of the reading.
+In this mode usage of the LM75 is supported: the ``Display.temperature`` property powers up the LM75
+for the duration of the reading. Use of flash is also supported, but to take advantage of the hardware the flash
+is not permanently mounted as this would require the hardware to be powered up. Accordingly
+the device should be mounted using the ``Display`` class ``mountflash()`` method prior to use and
+unmounted using the ``umountflash()`` method. Power will be applied for the duration of the mount.
 
-To achieve minimum power consumption use the processor flash memory and avoid uisng an SD card:
-current consumption using ``pyb.standby`` with a suitable hardware switch should be about 30uA
-offering the potential of nearly a year of operation from a CR2032 button cell (depending on the
-frequency and duration of power up events).
+To achieve minimum power consumption use the processor flash memory for code storage rather than an
+SD card because this draws power even when the Pyboard is in standby. Current consumption using ``pyb.standby()``
+with a suitable hardware switch should be about 30uA offering the potential of months of operation
+from a CR2032 button cell depending on the frequency and duration of power up events. Use of the panel's
+flash memory will add minimal power as the hardware powers off the entire panel in standby.
 
 # Legalities
 

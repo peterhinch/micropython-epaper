@@ -1,7 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.3
-# 3rd Aug 2015
+# version 0.41
+# 14th Aug 2015 Support for power control
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -18,6 +18,7 @@
 # governing permissions and limitations under the License.
 
 import pyb
+from panel import Panel, PINS
 
 EPD_OK = const(0) # error codes
 EPD_UNSUPPORTED_COG = const(1)
@@ -31,12 +32,6 @@ LINES_PER_DISPLAY = const(176)
 BYTES_PER_LINE = const(33)
 BYTES_PER_SCAN = const(44)
 BITS_PER_LINE = const(264)
-
-# Pin definitions. Y skin is tuple[0], X is tuple[1]
-PINS = {'PANEL_ON': ('Y3','X3'), 'BORDER': ('X12','Y12'), 'DISCHARGE': ('Y4','X4'),
-        'RESET':    ('Y2','X2'), 'BUSY':   ('X11','Y11'), 'EPD_CS':    ('Y5','X5'),
-        'FLASH_CS': ('Y1','X1'), 'MOSI':   ('Y8','X8'),   'MISO':      ('Y7','X7'),
-        'SCK':      ('Y6','X6'), 'SPI_BUS': (2,1),        'I2C_BUS':(1,2)}
 
 def pinsetup(intside): # 0 is Y side 1 is X
     global Pin_PANEL_ON, Pin_BORDER, Pin_DISCHARGE, Pin_RESET, Pin_BUSY, Pin_EPD_CS, Pin_FLASH_CS
@@ -87,23 +82,16 @@ class LM75():
 class EPDException(Exception):
     pass
 
-class EPD():
+class EPD(Panel):
     def __init__(self, intside, pin_pwr, pwr_on):
+        super().__init__(pin_pwr, pwr_on)
         pinsetup(intside)                       # Create global pins
         self.spi_no = PINS['SPI_BUS'][intside]
         self.i2c_no = PINS['I2C_BUS'][intside]
         self.image = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY)
         self.linebuf = bytearray(BYTES_PER_LINE * 2 + BYTES_PER_SCAN)
-        self.pwrctrl = False
-        if pin_pwr is not None and pwr_on is not None:
-            self.pwrctrl = True
-            self.pwr_on = pwr_on
-            self.pwr_off = pwr_on ^ 1
-            self.pwrpin = pyb.Pin(pin_pwr, mode= pyb.Pin.OUT_PP)
-            self.pwrpin.value(self.pwr_off)
-        if not self.pwrctrl:
-            self.lm75 = LM75(self.i2c_no)       # LM75 is instantiated permanently
-
+        if not self.pwrctrl:                    # If we're powered up instantiate LM75 to throw
+            self.lm75 = LM75(self.i2c_no)       # early error if not working
 
 # USER INTERFACE
 
@@ -117,17 +105,18 @@ class EPD():
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
-        if self.pwrctrl:
-            self.pwrpin.value(self.pwr_on)
-            pyb.delay(10) # warm up the tubes
-            self.lm75 = LM75(self.i2c_no)       # Instantiate LM75 for the duration of power
-        return self.lm75.temperature
-        if self.pwrctrl:
-            self.pwrpin.value(self.pwr_off)
+        if self.pwrctrl:                        # May be powered down. No permanent LM75
+            self.poweron()
+            lm75 = LM75(self.i2c_no)            # Instantiate LM75 for the duration of power
+            temperature = lm75.temperature
+            self.poweroff()
+            return temperature
+        return self.lm75.temperature            # Permanent power
 
 # END OF USER INTERFACE
 
     def __enter__(self):                        # power up sequence
+        self.poweron()                          # Apply power if controlled
         self.status = EPD_OK
         Pin_RESET.low()
         Pin_PANEL_ON.low()
@@ -234,7 +223,11 @@ class EPD():
         # stage1: repeat, step, block
         # stage2: repeat, t1, t2
         # stage3: repeat, step, block
-        temperature = self.temperature
+        if self.pwrctrl:                        # powered up, no LM75 instance, must not power down
+            lm75 = LM75(self.i2c_no)            # Instantiate LM75
+            temperature = lm75.temperature
+        else:
+            temperature = self.lm75.temperature
         if temperature < 10 :
             self.compensation = {'stage1_repeat':2, 'stage1_step':8, 'stage1_block':64,
                                  'stage2_repeat':4, 'stage2_t1':392, 'stage2_t2':392,
@@ -294,7 +287,7 @@ class EPD():
         Pin_PANEL_ON.low()
         Pin_BORDER.low()
         self._SPI_send(b'\x00\x00')
-        pyb.delay(1)                           # was pyb.udelay(10)
+        pyb.udelay(10)
         self.spi.deinit()
         Pin_SCK.init(mode = pyb.Pin.OUT_PP)
         Pin_SCK.low()
@@ -307,8 +300,8 @@ class EPD():
         Pin_DISCHARGE.high()
         pyb.delay(150)
         Pin_DISCHARGE.low()
-        if self.pwrctrl:                        # Micropower: turn off the panel
-            self.pwrpin.value(self.pwr_off)
+        self.poweroff()                         # Micropower: turn off the panel
+
 
 # One frame of data is the number of lines * rows. For example:
 # The 2.7” frame of data is 176 lines * 264 dots.

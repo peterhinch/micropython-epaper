@@ -1,6 +1,7 @@
-# epaper.py Top level module for Embedded Artists' 2.7 inch E-paper Display.
+# epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.3
+# version 0.41
+# 13tb Aug 2015 Support for external power control hardware
 # 3rd Aug 2015 Optimisations and code improvements
 # 29th July 2015 clear_display resets text cursor
 
@@ -59,42 +60,60 @@ class Font(object):
         self.exists = True
         return self
 
-    def __exit__(self, *_): #fclose(self)
+    def __exit__(self, *_):
         self.exists = False
         self.fontfile.close()
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
     def __init__(self, use_flash = False, side = 'Y', pin_pwr = None, pwr_on = None):
-        self.flash_used = use_flash
+        self.flash = None                       # Assume flash is unused
         try:
             self.intside = {'x':1, 'X':1, 'y':0,'Y':0}[side]
         except KeyError:
             raise ValueError("Side must be 'X' or 'Y'")
-        self.epd = EPD(self.intside, pin_pwr, pwr_on)
+        self.micropower = (type(pin_pwr) is str) and (pwr_on in (0,1))
+        if (pin_pwr is None) ^ (pwr_on is None): # Basic check for invalid default arg use
+            raise ValueError("If a power pin is specified the pwr_on value must be 0 or 1")
 
+        self.epd = EPD(self.intside, pin_pwr, pwr_on)
         self.font = Font()
         self.locate(0, 0)                       # Text cursor: default top left
-        if self.flash_used:
-            self.flash = FlashClass(self.intside)
-            try:
-                pyb.mount(None, self.flash.mountpoint)
-            except OSError:
-                pass                            # Ignore if not mounted
-            pyb.mount(self.flash, self.flash.mountpoint)
+
+        self.mounted = False                    # umountflash() not to sync
+        if use_flash:
+            self.flash = FlashClass(self.intside, pin_pwr, pwr_on)
+            self.umountflash()                  # In case mounted by prior tests.
+            if not self.micropower:             # Normal operation: flash is mounted continuously
+                self.mountflash()
+
+    def mountflash(self):
+        if self.flash is None:                  # Not being used
+            return
+        self.flash.begin()                      # Turn on power if under control. Initialise.
+        pyb.mount(self.flash, self.flash.mountpoint)
+        self.mounted = True
+
+    def umountflash(self):                      # Unmount flash and power it down
+        if self.flash is None:
+            return
+        if self.mounted:
+            self.flash.sync()
+        try:
+            pyb.mount(None, self.flash.mountpoint)
+        except OSError:
+            pass                                # Don't care if it wasn't mounted
+        self.flash.end()                        # Shut down, turn off power if under control
+        self.mounted = False                    # flag unmounted to prevent spurious syncs
 
     def show(self):
-        if self.flash_used:
-            self.flash.sync()                   # sync, umount flash, shut it down and disable SPI
-            pyb.mount(None, self.flash.mountpoint)
-            self.flash.end()
+        self.umountflash()                      # sync, umount flash, shut it down and disable SPI
                                                 # EPD functions which access the display electronics must be
         with self.epd as epd:                   # called from a with block to ensure proper startup & shutdown
             epd.showdata()
 
-        if self.flash_used:
-            self.flash.begin()                  # Re-enable flash
-            pyb.mount(self.flash, self.flash.mountpoint)
+        if not self.micropower:
+            self.mountflash()
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
