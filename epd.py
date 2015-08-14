@@ -101,7 +101,9 @@ class EPD(Panel):
         self._frame_data_13(EPD_normal)
 
     def clear_data(self):
-        self.image[:] = bytes((0 for x in range(len(self.image))))
+        for x in range(len(self.image)):
+            self.image[x] = 0
+#        self.image[:] = bytes((0 for x in range(len(self.image)))) needless RAM allocation
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius

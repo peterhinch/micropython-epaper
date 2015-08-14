@@ -158,28 +158,19 @@ slow when you write a string using a large font. In the meantime be patient. Or 
  3. ``pin_pwr`` Specifies a pin for optional micropower support. Default None.
  4. ``pwr_on`` Pass 1 or 0 to define the ON state of the micropower circuit. Default None.
 
-``clear_screen()`` Clears the screen by blanking the screen buffer and calling ``show()``
-
-``show()`` Displays the contents of the screen buffer.
-
+``clear_screen()`` Clears the screen by blanking the screen buffer and calling ``show()``  
+``show()`` Displays the contents of the screen buffer.  
 ``line()`` Draw a line. Arguments ``X0, Y0, X1, Y1, Width, Black``. Defaults: width = 1 pixel,
-Black = True
-
+Black = True  
 ``rect()`` Draw a rectangle. Arguments ``X0, Y0, X1, Y1, Width, Black``. Defaults: width = 1 pixel,
-Black = True
-
-``fillrect()`` Draw a filled rectangle. Arguments ``X0, Y0, X1, Y1, Black``. Defaults: Black = True
-
+Black = True  
+``fillrect()`` Draw a filled rectangle. Arguments ``X0, Y0, X1, Y1, Black``. Defaults: Black = True  
 ``circle()`` Draw a circle. Arguments ``x0, y0, r, width, black``. Defaults: width = 1 pixel,
-Black = True. x0, y0 are the coodinates of the centre, r is the radius.
-
-``fillcircle()`` Draw a filled circle. Arguments ``x0, y0, r, black``. Defaults: Black = True
-
+Black = True. x0, y0 are the coodinates of the centre, r is the radius.  
+``fillcircle()`` Draw a filled circle. Arguments ``x0, y0, r, black``. Defaults: Black = True  
 ``load_xbm()`` Load a full screen image formatted as an XBM file. Argument ``sourcefile``. This is
-the path to the XBM file.
-
-``locate()`` This sets the pixel location of the text cursor. Arguments ``x, y``.
-
+the path to the XBM file.  
+``locate()`` This sets the pixel location of the text cursor. Arguments ``x, y``.  
 ``puts()`` Write a text string to the buffer. Argument ``s``, the string to display. This must
 be called from a ``with`` block that defines the font. For example
 
@@ -189,16 +180,14 @@ with a.font('/sd/LiberationSerif-Regular45x44'):
 ```
 
 ``setpixel()`` Set or clear a pixel. Arguments ``x, y, black``. Checks for and ignores pixels not
-within the display boundary.
-
+within the display boundary.  
 ``setpixelfast()`` Set or clear a pixel. Arguments ``x, y, black``. Caller must check bounds. Uses
 the viper emitter for maximum speed.
 
 The following methods are intended to support micropower operation using external power control hardware.
-They should not be used in normal opertion as in this cse the flash device is mounted automatically.
+They should not be used in normal opertion as in this case the flash device is mounted automatically.
 
-``mountflash()`` Power up the panel and mount the flash device.
-
+``mountflash()`` Power up the panel and mount the flash device.  
 ``umountflash()`` Unmount the flash memory and power down the panel.
 
 ### Properties
@@ -312,7 +301,7 @@ the bus de-initilased. The flash device is then re-initilased and re-mounted.
 
 This provides the base class for the ``EPD`` and ``FlashClass`` classes. Its purpose is to support optional
 external hardware for micropower operation. Its methods do nothing unless the Display object
-was instantiated with ``pin_pwr`` and ``pwr_on`` arguments. It provides the Pyboard pin definitions
+was instantiated with ``pin_pwr`` and ``pwr_on`` arguments. It also provides the Pyboard pin definitions
 for use by the panel.
 
 ### Methods
@@ -345,7 +334,7 @@ can be subject to copyright restrictions. The provided font samples are released
 # Micropower Support
 
 This enables the display panel to be turned off to conserve power in applications where power consumption
-is critical and assumes external hardware to ahieve this. Hardware issues are discussed in micropower/micropower.md
+is critical and assumes external hardware to ahieve this. Hardware issues are discussed [here](micropower/micropower.md)
 
 Given a hardware controller capable of switching the power to the display (it uses about 10mA
 during transitions) your code should instantiate the ``Display`` object with the pin ID that
@@ -379,5 +368,5 @@ with graphics code derived from [ARM mbed](https://developer.mbed.org/users/dres
 Further sources of information:  
 [device data and interface timing](http://www.pervasivedisplays.com/products/27)  
 [COG interface timing](http://www.pervasivedisplays.com/_literature_220873/COG_Driver_Interface_Timing_for_small_size_G2_V231)  
-[Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf)
+[Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf)  
 [RePaper](http://repaper.org/doc/cog_driving.html)
