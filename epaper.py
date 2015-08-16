@@ -1,7 +1,8 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.41
-# 13tb Aug 2015 Support for external power control hardware
+# version 0.42
+# 16th Aug 2015 Bitmap file display supports small bitmaps. Code is more generic
+# 13th Aug 2015 Support for external power control hardware
 # 3rd Aug 2015 Optimisations and code improvements
 # 29th July 2015 clear_display resets text cursor
 
@@ -26,6 +27,40 @@ from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
 import pyb, os
 
 NEWLINE = const(10)             # ord('\n')
+
+# Generator parses an XBM file returning width, height, followed by data bytes
+def get_xbm_data(sourcefile):
+    errmsg = ''.join(("File: '", sourcefile, "' is not a valid XBM file"))
+    try:
+        with open(sourcefile, 'r') as f:
+            phase = 0
+            for line in f:
+                if phase < 2:
+                    if line.startswith('#define'):
+                        yield int(line.split(' ')[-1])
+                        phase += 1
+                if phase == 2:
+                    start = line.find('{')
+                    if start >= 0:
+                        line = line[start +1:]
+                        phase += 1
+                if phase == 3:
+                    if not line.isspace():
+                        phase += 1
+                if phase == 4:
+                    end = line.find('}')
+                    if end >=0 :
+                        line = line[:end]
+                        phase += 1
+                    hexnums = line.split(',')
+                    if hexnums[0] != '':
+                        for hexnum in [q for q in hexnums if not q.isspace()]:
+                            yield int(hexnum, 16)
+            if phase != 5 :
+                print(errmsg)
+    except OSError:
+        print("Can't open " + sourcefile + " for reading")
+
 
 class FontFileError(Exception):
     pass
@@ -119,10 +154,11 @@ class Display(object):
     def temperature(self):                      # return temperature as integer in Celsius
         return self.epd.temperature
 
-    def clear_screen(self):
+    def clear_screen(self, show = True):
         self.locate(0, 0)                       # Reset text cursor
         self.epd.clear_data()
-        self.show()
+        if show:
+            self.show()
 
     @micropython.native
     def setpixel(self, x, y, black):            # 41uS. Clips to borders
@@ -250,41 +286,51 @@ class Display(object):
 
 # ****** Image display ******
 
-    def load_xbm(self, sourcefile):
-        '''
-        Load an xBM image file for display.
-        '''
-        errmsg = ''.join(("File: '", sourcefile, "' is either not a valid XBM file or is not the correct size (", 
-                          str(LINES_PER_DISPLAY), " lines of ", str(BYTES_PER_LINE), " bytes per line)"))
-        try:
-            with open(sourcefile, 'r') as f:
-                phase = 0
-                index = 0
-                for line in f:
-                    if phase == 0:
-                        start = line.find('{')
-                        if start >= 0:
-                            line = line[start +1:]
-                            phase =1
-                    if phase == 1:
-                        if not line.isspace():
-                            phase = 2
-                    if phase ==2:
-                        end = line.find('}')
-                        if end >=0 :
-                            line = line[:end]
-                            phase = 3
-                        hexnums = line.split(',')
-                        if hexnums[0] != '':
-                            for hexnum in [x for x in hexnums if not x.isspace()]:
-                                self.epd.image[index] = int(hexnum, 16)
-                                index += 1
-                if phase != 3 or index != BYTES_PER_LINE * LINES_PER_DISPLAY:
-                    print(errmsg)
-        except OSError:
-            print("Can't open " + sourcefile + " for reading")
-        except IndexError:
-            print(errmsg)
+    def load_xbm(self, sourcefile, x = 0, y = 0):
+        g = get_xbm_data(sourcefile)
+        width = next(g)
+        height = next(g)
+        self.loadgfx(g, width, height, x, y)
+
+# Load a rectangular region with a bitmap supplied by a generator. This must supply bytes for each line in turn. These
+# are displyed left to right, LSB of the 1st byte being at the top LH corner. Unused bits at the end of the line are
+# ignored with a  new line starting on the next byte.
+
+    def loadgfx(self, gen, width, height, x0, y0):
+        byteoffset = x0 >> 3
+        bitshift = x0 & 7   # Offset of image relative to byte boundary
+        bytes_per_line = width >> 3
+        if width & 7 > 0:
+            bytes_per_line += 1
+        for line in range(height):
+            y = y0 + line
+            if y >= LINES_PER_DISPLAY:
+                break
+            index = y * BYTES_PER_LINE + byteoffset
+            bitsleft = width
+            x = x0
+            for byte in range(bytes_per_line):
+                val = next(gen)
+                bits_to_write = min(bitsleft, 8)
+                x += bits_to_write
+                if x <= BITS_PER_LINE:
+                    if bitshift == 0 and bits_to_write == 8:
+                        self.epd.image[index] = val
+                        index += 1
+                    else:
+                        mask = ((1 << bitshift) -1) # Bits in current byte to preserve
+                        bitsused = bitshift + bits_to_write
+                        overflow = max(0, bitsused -8)
+                        underflow = max(0, 8 -bitsused)
+                        if underflow:               # Underflow in current byte
+                            mask = (mask | ~((1 << bitsused) -1)) & 0xff
+                        nmask = ~mask & 0xff        # Bits to overwrite
+                        self.epd.image[index] = (self.epd.image[index] & mask) | ((val << bitshift) & nmask)
+                        index += 1
+                        if overflow :               # Bits to write to next byte
+                            mask = ~((1 << overflow) -1) & 0xff    # Preserve
+                            self.epd.image[index] = (self.epd.image[index] & mask) | (val >> (8 - bitshift))
+                bitsleft -= bits_to_write
 
 # ****** Text support ******
 

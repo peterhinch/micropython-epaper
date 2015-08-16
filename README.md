@@ -158,7 +158,8 @@ slow when you write a string using a large font. In the meantime be patient. Or 
  3. ``pin_pwr`` Specifies a pin for optional micropower support. Default None.
  4. ``pwr_on`` Pass 1 or 0 to define the ON state of the micropower circuit. Default None.
 
-``clear_screen()`` Clears the screen by blanking the screen buffer and calling ``show()``  
+``clear_screen()`` Clears the screen. Argument ``show`` Default True. Blanks the screen buffer and
+resets the text cursor. If ``show`` is set displays the result by calling the ``show()`` method.  
 ``show()`` Displays the contents of the screen buffer.  
 ``line()`` Draw a line. Arguments ``X0, Y0, X1, Y1, Width, Black``. Defaults: width = 1 pixel,
 Black = True  
@@ -168,8 +169,8 @@ Black = True
 ``circle()`` Draw a circle. Arguments ``x0, y0, r, width, black``. Defaults: width = 1 pixel,
 Black = True. x0, y0 are the coodinates of the centre, r is the radius.  
 ``fillcircle()`` Draw a filled circle. Arguments ``x0, y0, r, black``. Defaults: Black = True  
-``load_xbm()`` Load a full screen image formatted as an XBM file. Argument ``sourcefile``. This is
-the path to the XBM file.  
+``load_xbm()`` Load an image formatted as an XBM file. Arguments ``sourcefile, x0, y0``: Path
+to the XBM file followed by coordinates (default 0, 0).
 ``locate()`` This sets the pixel location of the text cursor. Arguments ``x, y``.  
 ``puts()`` Write a text string to the buffer. Argument ``s``, the string to display. This must
 be called from a ``with`` block that defines the font. For example

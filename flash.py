@@ -61,7 +61,10 @@ FLASH_SECTOR_MASK = const(0xfff)
 FLASH_MFG = 0xef # Winbond
 FLASH_ID = 0x4016 #W25Q32 memory type and capacity
 
-def cp(source, dest):                           # Utility to copy a file e.g. to flash
+# Dumb file copy utility to help with managing flash contents at the REPL.
+def cp(source, dest):
+    if dest.endswith('/'):                      # minimal way to allow
+        dest = ''.join((dest, source.split('/')[-1]))  # cp /sd/file /fc/
     with open(source, 'rb') as infile:          # Caller should handle any OSError
         with open(dest,'wb') as outfile:        # e.g file not found
             while True:
@@ -87,7 +90,6 @@ class FlashClass(Panel):
         super().__init__(pin_pwr, pwr_on)       # if power is controlled it will be off.
         self.spi_no = PINS['SPI_BUS'][intside]
         self.pinCS = pyb.Pin(PINS['FLASH_CS'][intside], mode = pyb.Pin.OUT_PP)
-#        self.pinCS.high()
         self.buff0 = bytearray(FLASH_SECTOR_SIZE)
         self.buff1 = bytearray(FLASH_SECTOR_SIZE)
         self.current_sector = None              # Current flash sector number for writing
