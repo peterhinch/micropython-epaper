@@ -1,6 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.41
+# version 0.42
+# 17th Aug 2015 __exit__() sequence adjusted to conform with datasheet rather than Arduino code
 # 14th Aug 2015 Support for power control
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
@@ -259,50 +260,51 @@ class EPD(Panel):
             self.status = EPD_DC_FAILED
             self._power_off()
             raise EPDException("EPD DC power failure")
+        self._SPI_send(b'\x70\x0B') # Conform with datasheet
+        self._SPI_send(b'\x72\x00')
         # latch reset turn on
         self._SPI_send(b'\x70\x03')
         self._SPI_send(b'\x72\x01')
         # output enable off
-        self._SPI_send(b'\x70\x02')
-        self._SPI_send(b'\x72\x05')
+#        self._SPI_send(b'\x70\x02') Conform with datasheet
+#        self._SPI_send(b'\x72\x05')
         # power off charge pump Vcom
         self._SPI_send(b'\x70\x05')
         self._SPI_send(b'\x72\x03')
         # power off charge pump neg voltage
         self._SPI_send(b'\x70\x05')
         self._SPI_send(b'\x72\x01')
-        pyb.delay(240)
+        pyb.delay(120)
+        # discharge internal on
+        self._SPI_send(b'\x70\x04')
+        self._SPI_send(b'\x72\x80')
         # power off all charge pumps
         self._SPI_send(b'\x70\x05')
         self._SPI_send(b'\x72\x00')
         # turn of osc
         self._SPI_send(b'\x70\x07')
         self._SPI_send(b'\x72\x01')
-        # discharge internal on
-        self._SPI_send(b'\x70\x04')
-        self._SPI_send(b'\x72\x83')
-        pyb.delay(30)
+        pyb.delay(50)
         self._power_off()
 
     def _power_off(self):                       # turn of power and all signals
-        Pin_RESET.low()
         Pin_PANEL_ON.low()
-        Pin_BORDER.low()
-        self._SPI_send(b'\x00\x00')
-        pyb.udelay(10)
+#        self._SPI_send(b'\x00\x00')
         self.spi.deinit()
         Pin_SCK.init(mode = pyb.Pin.OUT_PP)
         Pin_SCK.low()
         Pin_MOSI.init(mode = pyb.Pin.OUT_PP)
         Pin_MOSI.low()
+        Pin_BORDER.low()
         # ensure SPI MOSI and CLOCK are Low before CS Low
+        self.poweroff()                         # Micropower: turn off the panel
+        pyb.udelay(10)
+        Pin_RESET.low()
         Pin_EPD_CS.low()
-
         # pulse discharge pin
         Pin_DISCHARGE.high()
         pyb.delay(150)
         Pin_DISCHARGE.low()
-        self.poweroff()                         # Micropower: turn off the panel
 
 
 # One frame of data is the number of lines * rows. For example:
