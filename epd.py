@@ -1,6 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.42
+# version 0.43
+# 25th Aug 2015 EPD.poweroff() altered for case where Vss is switched
 # 17th Aug 2015 __exit__() sequence adjusted to conform with datasheet rather than Arduino code
 # 14th Aug 2015 Support for power control
 
@@ -297,15 +298,15 @@ class EPD(Panel):
         Pin_MOSI.low()
         Pin_BORDER.low()
         # ensure SPI MOSI and CLOCK are Low before CS Low
-        self.poweroff()                         # Micropower: turn off the panel
-        pyb.udelay(10)
+#        self.poweroff()                         # Micropower: turn off the panel now if only +ve supply is switched
+#        pyb.delay(10)
         Pin_RESET.low()
         Pin_EPD_CS.low()
         # pulse discharge pin
         Pin_DISCHARGE.high()
         pyb.delay(150)
         Pin_DISCHARGE.low()
-
+        self.poweroff()                         # If -ve supply is also switched can't power off until here
 
 # One frame of data is the number of lines * rows. For example:
 # The 2.7” frame of data is 176 lines * 264 dots.

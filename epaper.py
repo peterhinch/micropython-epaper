@@ -101,7 +101,7 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, use_flash = False, side = 'Y', pin_pwr = None, pwr_on = None):
+    def __init__(self, side = 'Y', use_flash = False, pin_pwr = None, pwr_on = None):
         self.flash = None                       # Assume flash is unused
         try:
             self.intside = {'x':1, 'X':1, 'y':0,'Y':0}[side]
