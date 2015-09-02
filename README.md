@@ -309,8 +309,8 @@ either side of the Pyboard.
 # Module micropower.py
 
 This provides the ``PowerController`` class supporting hardware for turning off the power to the
-display and other attached hardware. This will be described in detail in my micropython-micropower
-repository but the aim is as follows. E-paper displays excel in ultra low power applications in that
+display and other attached hardware. This is described in detail [here](https://github.com/peterhinch/micropython-micropower.git)
+but the aim is as follows. E-paper displays excel in ultra low power applications in that
 power can be entirely removed from the display with the image being retained. To achieve the
 lowest possible power consumption from the Pyboard it should be put into standby mode; at the
 same time power should be removed from attached peripherals inluding the EPD. This requires
@@ -325,8 +325,8 @@ a modification to the Pyboard, 7uA offering the potential of a year of operation
 
 The PowerController supports two notional hardware interfaces. The preferred type termed  ``single_ended``
 uses two Pyboard control lines, one (active low) for the peripheral power and the other (active high) for
-the pullups. Alternatively with an alternative hardware design a single pin, either active high or
-active low, may be specified to control both power and pullups.
+the pullups. With an alternative hardware design a single pin, either active high or active low, may be
+specified to control both power and pullups.
 
 ## PowerController class
 
@@ -369,7 +369,7 @@ can be subject to copyright restrictions. The provided font samples are released
 # Micropower Support
 
 This enables the display panel to be turned off to conserve power in applications where power consumption
-is critical and assumes external hardware to ahieve this. Hardware issues are discussed [here](micropower/micropower.md)
+is critical and assumes external hardware to ahieve this. Hardware issues are discussed [here](https://github.com/peterhinch/micropython-micropower.git)
 
 Given a hardware controller capable of switching the power to the display (it uses about 10mA
 during transitions) your code should instantiate a ``PowerController`` object with the pin ID's that
