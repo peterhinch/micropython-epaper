@@ -1,10 +1,9 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.42
+# version 0.45
+# 29th Aug 2015 Improved power control support
 # 16th Aug 2015 Bitmap file display supports small bitmaps. Code is more generic
 # 13th Aug 2015 Support for external power control hardware
-# 3rd Aug 2015 Optimisations and code improvements
-# 29th July 2015 clear_display resets text cursor
 
 # Copyright 2015 Peter Hinch
 #
@@ -24,6 +23,7 @@
 
 from flash import FlashClass
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
+from micropower import PowerController
 import pyb, os
 
 NEWLINE = const(10)             # ord('\n')
@@ -101,25 +101,23 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, side = 'Y', use_flash = False, pin_pwr = None, pwr_on = None):
+    def __init__(self, side = 'Y', use_flash = False, pwr_controller = None):
         self.flash = None                       # Assume flash is unused
         try:
             self.intside = {'x':1, 'X':1, 'y':0,'Y':0}[side]
         except KeyError:
             raise ValueError("Side must be 'X' or 'Y'")
-        self.micropower = (type(pin_pwr) is str) and (pwr_on in (0,1))
-        if (pin_pwr is None) ^ (pwr_on is None): # Basic check for invalid default arg use
-            raise ValueError("If a power pin is specified the pwr_on value must be 0 or 1")
+        self.pwr_controller = pwr_controller
 
-        self.epd = EPD(self.intside, pin_pwr, pwr_on)
+        self.epd = EPD(self.intside, pwr_controller)
         self.font = Font()
         self.locate(0, 0)                       # Text cursor: default top left
 
         self.mounted = False                    # umountflash() not to sync
         if use_flash:
-            self.flash = FlashClass(self.intside, pin_pwr, pwr_on)
+            self.flash = FlashClass(self.intside, pwr_controller)
             self.umountflash()                  # In case mounted by prior tests.
-            if not self.micropower:             # Normal operation: flash is mounted continuously
+            if self.pwr_controller is None:     # Normal operation: flash is mounted continuously
                 self.mountflash()
 
     def mountflash(self):
@@ -147,7 +145,7 @@ class Display(object):
         with self.epd as epd:                   # called from a with block to ensure proper startup & shutdown
             epd.showdata()
 
-        if not self.micropower:
+        if self.pwr_controller is None:         # Normal operation without power control: remount
             self.mountflash()
 
     @property

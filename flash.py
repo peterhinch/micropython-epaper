@@ -1,9 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.41
-# 14th Aug 2015 Support for power control
-# 11th Aug 2015
+# version 0.45
+# 29th Aug 2015 Improved power control support
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -28,7 +27,8 @@
 # a block is 512 bytes, this is defined in the block protocol for FAT
 
 import pyb 
-from panel import Panel, PINS
+from panel import PINS
+from micropower import PowerController
 
 # Winbond W25Q32 command set
 FLASH_WREN = const(0x06)
@@ -85,9 +85,9 @@ class FlashException(Exception):
 BUFFER = const(0)                               # Indices into sector descriptor
 DIRTY = const(1)
 
-class FlashClass(Panel):
-    def __init__(self, intside, pin_pwr = None, pwr_on = None):
-        super().__init__(pin_pwr, pwr_on)       # if power is controlled it will be off.
+class FlashClass(object):
+    def __init__(self, intside, pwr_controller = None):
+        self.pwr_controller = pwr_controller
         self.spi_no = PINS['SPI_BUS'][intside]
         self.pinCS = pyb.Pin(PINS['FLASH_CS'][intside], mode = pyb.Pin.OUT_PP)
         self.buff0 = bytearray(FLASH_SECTOR_SIZE)
@@ -100,7 +100,8 @@ class FlashClass(Panel):
 
     def begin(self):                            # Baud rates of 50MHz supported by chip
         self.pinCS.high()
-        self.poweron()                          # Apply power if controlled
+        if self.pwr_controller:
+            self.pwr_controller.power_up()      # Apply power if controlled
         self.spi = pyb.SPI(self.spi_no, pyb.SPI.MASTER, baudrate = 21000000, polarity = 1, phase = 1, bits = 8)
         if not self._available():               # Includes 1mS wakeup delay
             raise FlashException("Unsupported flash device")
@@ -109,7 +110,8 @@ class FlashClass(Panel):
         self.sync()
         self.pinCS.high()
         self.spi.deinit()
-        self.poweroff()                         # Remove power if controlled
+        if self.pwr_controller:
+            self.pwr_controller.power_down()    # Turn off device power if controlled
 
     def _available(self):                       # return True if the chip is supported
         self.info()                             # initial read to reset the chip

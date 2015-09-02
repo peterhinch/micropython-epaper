@@ -17,9 +17,9 @@ plans to do this. It is considerably faster than the Arduino code and as fast as
 alternative board I have seen.
 
 The EA rev D display includes an LM75 temperature sensor and a 4MB flash memory chip. The
-driver provides access to the current temperature. The driver does not use the flash
-chip: the current image is buffered in RAM. The driver has an option to mount
-the flash device to enable it to be used to store data such as images and fonts. This
+driver provides access to the current temperature. The display driver does not use the flash
+chip: the current image is buffered in RAM. An option is provided to mount the flash device
+in the Pyboard's filesystem enabling it to be used to store data such as images and fonts. This
 is the ``use_flash`` Display constructor argument. Setting this False will save over 8K of RAM.
 
 An issue with the EA module is that the Flash memory and the display module use the
@@ -33,20 +33,20 @@ driver provides support for such use: see Micropower Support below.
 
 # The driver
 
-The driver enables the display of simple graphics and/or text in any font. The graphics
+This enables the display of simple graphics and/or text in any font. The graphics
 capability may readily be extended by the user. This document includes instructions for
 converting Windows system fonts to a form usable by the driver (using free - as in beer - software).
 Such fonts may be edited prior to conversion. If anyone can point me to an open source
 pure Python solution - command line would be fine - I would gladly evaluate it. My own
-attempts at writing one have not been entirely successful to date.
+attempts at writing one have not been entirely successful.
 
-It also supports the display of XBM format graphics files. Currently only files corresponding
-to the exact size of the display (264 bits *176 lines) are supported.
+It also supports the display of XBM format graphics files, including the full screen
+sample images from Embedded Artists.
 
 # Connecting the display
 
 The display is supplied with a 14 way ribbon cable. The easiest way to connect
-it to the Pyboard is to cut this cable in half and wire one half of it (they are identical)
+it to the Pyboard is to cut this cable in half and wire one half of it (each half is identical)
 as follows. I fitted the Pyboard with socket headers and wired the display cable to a
 14 way pin header, enabling it to be plugged in to either side of the Pyboard (the two
 sides, labelled X and Y on the board, are symmetrical).
@@ -112,7 +112,8 @@ To employ the driver it is only neccessary to import the epaper module and to in
  1. epaper.py The user interface to the display and flash memory
  2. epd.py Low level driver for the EPD (electrophoretic display)
  3. flash.py Low level driver for the flash memory
- 4. panel.py Support for optional external power control (see below)
+ 4. panel.py Pin definitions for the display
+ 5. micropower.py Support for optional external power control (see below)
 
 Note that the flash drive will need to be formatted before first use: see the flash.py doc below.
 
@@ -122,7 +123,7 @@ Note that the flash drive will need to be formatted before first use: see the fl
 usable by the driver.  
 ``LiberationSerif-Regular45x44`` Sample binary font files (Times Roman lookalike)  
 ``inconsolata`` Monospaced 24 point terminal font  
-``aphrodite_2_7.xbm`` Sample full screen image files  
+``aphrodite_2_7.xbm`` Sample full screen image files from Embedded Artists  
 ``cat_2_7.xbm``  
 ``ea_2_7.xbm``  
 ``saturn_2_7.xbm``  
@@ -138,7 +139,7 @@ display the result. The ``show()`` method is the only one to access the EPD modu
 ``clear_screen()`` calls ``show()``). Others affect the buffer alone.
 
 There is support for micropower operation where the system power consumption must be minimised
-for long term operation from batteries. This uses external circuitry to shut down the power to
+for long term operation from a single cell. This uses external circuitry to shut down the power to
 the display before you issue ``pyb.stop()`` or ``pyb.standby``. See the appendix below.
 
 The coodinate system has its origin at the top left corner of the display, with integer
@@ -153,10 +154,9 @@ slow when you write a string using a large font. In the meantime be patient. Or 
 ### Methods
 
 ``Display()`` The constructor has the following arguments:
- 1. ``use_flash`` Mounts the flash drive as /fc for general use. Default False.
- 2. ``side`` This must be 'X' or 'Y' depending on the side of the Pyboard in use. Default 'Y'.
- 3. ``pin_pwr`` Specifies a pin for optional micropower support. Default None.
- 4. ``pwr_on`` Pass 1 or 0 to define the ON state of the micropower circuit. Default None.
+ 1. ``side`` This must be 'X' or 'Y' depending on the side of the Pyboard in use. Default 'Y'.
+ 2. ``use_flash`` Mounts the flash drive as /fc for general use. Default False.
+ 3. ``pwr_controller`` Optional PowerController instance for micropower support. Default None.
 
 ``clear_screen()`` Clears the screen. Argument ``show`` Default True. Blanks the screen buffer and
 resets the text cursor. If ``show`` is set displays the result by calling the ``show()`` method.  
@@ -170,10 +170,11 @@ Black = True
 Black = True. x0, y0 are the coodinates of the centre, r is the radius.  
 ``fillcircle()`` Draw a filled circle. Arguments ``x0, y0, r, black``. Defaults: Black = True  
 ``load_xbm()`` Load an image formatted as an XBM file. Arguments ``sourcefile, x0, y0``: Path
-to the XBM file followed by coordinates (default 0, 0).
+to the XBM file followed by coordinates defaultig to 0, 0.
 ``locate()`` This sets the pixel location of the text cursor. Arguments ``x, y``.  
 ``puts()`` Write a text string to the buffer. Argument ``s``, the string to display. This must
-be called from a ``with`` block that defines the font. For example
+be called from a ``with`` block that defines the font; text will be rendered to the pixel location
+of the text cursor. Newline characters and line wrapping are supported. Example usage:
 
 ```python```
 with a.font('/sd/LiberationSerif-Regular45x44'):
@@ -247,7 +248,7 @@ import pyb, flash, os
 f = flash.FlashClass(0) # If on X side pass 1
 f.low_level_format()
 pyb.mount(f, f.mountpoint, mkfs=True)
-flash.cp('/sd/LiberationSerif-Regular45x44','/fc/LiberationSerif-Regular45x44')
+flash.cp('/sd/LiberationSerif-Regular45x44','/fc/')
 os.listdir('/fc')
 pyb.mount(None, '/fc')
 
@@ -255,9 +256,11 @@ pyb.mount(None, '/fc')
 
 ## File copy
 
-A ``cp(source, dest)`` function is provided as a generic file copy routine. Arguments are
-full pathnames to source and destination files. If an OSError is thrown (e.g. by the
-source file not existing) it is up to the caller to handle it.
+A rudimentary ``cp(source, dest)`` function is provided as a generic file copy
+routine. The first argument is the full pathname to the source file. The second may
+be a full path to the destination file or a directory specifier which must have a
+trailing '/'. If an OSError is thrown (e.g. by the source file not existing) it is up
+to the caller to handle it.
 
 ## FlashClass
 
@@ -300,15 +303,46 @@ the bus de-initilased. The flash device is then re-initilased and re-mounted.
 
 # Module panel.py
 
-This provides the base class for the ``EPD`` and ``FlashClass`` classes. Its purpose is to support optional
-external hardware for micropower operation. Its methods do nothing unless the Display object
-was instantiated with ``pin_pwr`` and ``pwr_on`` arguments. It also provides the Pyboard pin definitions
-for use by the panel.
+This simply provides a dictionary of pin definitions enabling the panel to be installed on
+either side of the Pyboard.
+
+# Module micropower.py
+
+This provides the ``PowerController`` class supporting hardware for turning off the power to the
+display and other attached hardware. This will be described in detail in my micropython-micropower
+repository but the aim is as follows. E-paper displays excel in ultra low power applications in that
+power can be entirely removed from the display with the image being retained. To achieve the
+lowest possible power consumption from the Pyboard it should be put into standby mode; at the
+same time power should be removed from attached peripherals inluding the EPD. This requires
+external hardware, namely a p-channel MOSFET controlled by a Pyboard pin. However there
+is an issue in that the Pyboard provides no means of turning off power to the I2C pullup resistors.
+This means that, if you power down the display, power continues to flow into the module (and other
+connected I2C modules) via these resistors.
+
+The external hardware needs a means to prevent this from occurring, described in detail in my
+micropython-micropower repository. Standby power consumption can then be reduced to 29uA, or, with
+a modification to the Pyboard, 7uA offering the potential of a year of operation from a CR2032 button cell.
+
+The PowerController supports two notional hardware interfaces. The preferred type termed  ``single_ended``
+uses two Pyboard control lines, one (active low) for the peripheral power and the other (active high) for
+the pullups. Alternatively with an alternative hardware design a single pin, either active high or
+active low, may be specified to control both power and pullups.
+
+## PowerController class
 
 ### Methods
 
-``poweron()`` Turns the power control hardware on, delays 10mS.  
-``poweroff()`` Turns the power control hardware off.
+``PowerController()`` The constructor takes two mandatory arguments ``pin_active_high`` and ``pin_active_low``,
+being string names of Pyboard pins or ``None``. If both are declared, single ended mode is assumed. If
+one is ``None``, it assumes both supplies are switched by a single output. If both are ``None`` the object
+will do nothing.  
+``power_up()`` Turns the power control hardware on, delays 10mS.  
+``power_down()`` Turns the power control hardware off. In single ended mode turns off the positive
+supply, waits 10mS then disables the pullups.
+
+### Property
+
+``single_ended`` Returns True if the pullups are controlled separately from the peripheral power.
 
 # Fonts
 
@@ -338,14 +372,14 @@ This enables the display panel to be turned off to conserve power in application
 is critical and assumes external hardware to ahieve this. Hardware issues are discussed [here](micropower/micropower.md)
 
 Given a hardware controller capable of switching the power to the display (it uses about 10mA
-during transitions) your code should instantiate the ``Display`` object with the pin ID that
-operates your controller and its sense (the bit value required to turn the display on). Then use
-the display (and temperature sensor) as normal. The ``Display`` object will use the hardware to turn
-the display on and off as necessary.
+during transitions) your code should instantiate a ``PowerController`` object with the pin ID's that
+operate the controller. Then instantiate a ``Display`` object passing the ``PowerController`` instance
+to the constructor. You can then use the display (and temperature sensor) as normal. The ``Display`` object
+will use the hardware to turn the display on and off as necessary.
 
 In this mode usage of the LM75 is supported: the ``Display.temperature`` property powers up the LM75
 for the duration of the reading. Use of flash is also supported, but to take advantage of the hardware the flash
-is not permanently mounted as this would require the hardware to be powered up. Accordingly
+is not permanently mounted as this would require the device to be powered up. Accordingly
 the device should be mounted using the ``Display`` class ``mountflash()`` method prior to use and
 unmounted using the ``umountflash()`` method. Power will be applied for the duration of the mount.
 
@@ -357,9 +391,10 @@ flash memory will add minimal power as the hardware powers off the entire panel 
 
 # Legalities
 
-This software is based on C code released under the Apache licence. Accordingly I have released this
-code under the same licence and included the original copyright headers in the source. If the
-copyright owner has any issues with this I will be happy to accommodate any requests for changes.
+The EPD and Flash driver code is based on C code released under the Apache licence. Accordingly I
+have released this code under the same licence and included the original copyright headers in the
+source. If the copyright owner has any issues with this I will be happy to accommodate any requests
+for changes.
 
 # References
 

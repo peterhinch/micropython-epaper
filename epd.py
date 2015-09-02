@@ -1,7 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.43
-# 25th Aug 2015 EPD.poweroff() altered for case where Vss is switched
+# version 0.45
+# 29th Aug 2015 Improved power control support
 # 17th Aug 2015 __exit__() sequence adjusted to conform with datasheet rather than Arduino code
 # 14th Aug 2015 Support for power control
 
@@ -20,7 +20,8 @@
 # governing permissions and limitations under the License.
 
 import pyb
-from panel import Panel, PINS
+from panel import PINS
+from micropower import PowerController
 
 EPD_OK = const(0) # error codes
 EPD_UNSUPPORTED_COG = const(1)
@@ -84,15 +85,15 @@ class LM75():
 class EPDException(Exception):
     pass
 
-class EPD(Panel):
-    def __init__(self, intside, pin_pwr, pwr_on):
-        super().__init__(pin_pwr, pwr_on)
+class EPD(object):
+    def __init__(self, intside, pwr_controller = None):
+        self.pwr_controller = pwr_controller
         pinsetup(intside)                       # Create global pins
         self.spi_no = PINS['SPI_BUS'][intside]
         self.i2c_no = PINS['I2C_BUS'][intside]
         self.image = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY)
         self.linebuf = bytearray(BYTES_PER_LINE * 2 + BYTES_PER_SCAN)
-        if not self.pwrctrl:                    # If we're powered up instantiate LM75 to throw
+        if self.pwr_controller is None:         # If we're powered up instantiate LM75 to throw
             self.lm75 = LM75(self.i2c_no)       # early error if not working
 
 # USER INTERFACE
@@ -109,18 +110,19 @@ class EPD(Panel):
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
-        if self.pwrctrl:                        # May be powered down. No permanent LM75
-            self.poweron()
+        if self.pwr_controller:
+            self.pwr_controller.power_up()      # Apply power if controlled
             lm75 = LM75(self.i2c_no)            # Instantiate LM75 for the duration of power
             temperature = lm75.temperature
-            self.poweroff()
+            self.pwr_controller.power_down()
             return temperature
         return self.lm75.temperature            # Permanent power
 
 # END OF USER INTERFACE
 
     def __enter__(self):                        # power up sequence
-        self.poweron()                          # Apply power if controlled
+        if self.pwr_controller:
+            self.pwr_controller.power_up()      # Apply power if controlled
         self.status = EPD_OK
         Pin_RESET.low()
         Pin_PANEL_ON.low()
@@ -227,7 +229,7 @@ class EPD(Panel):
         # stage1: repeat, step, block
         # stage2: repeat, t1, t2
         # stage3: repeat, step, block
-        if self.pwrctrl:                        # powered up, no LM75 instance, must not power down
+        if self.pwr_controller:                 # powered up, no LM75 instance, must not power down
             lm75 = LM75(self.i2c_no)            # Instantiate LM75
             temperature = lm75.temperature
         else:
@@ -298,15 +300,17 @@ class EPD(Panel):
         Pin_MOSI.low()
         Pin_BORDER.low()
         # ensure SPI MOSI and CLOCK are Low before CS Low
-#        self.poweroff()                         # Micropower: turn off the panel now if only +ve supply is switched
-#        pyb.delay(10)
+        if (self.pwr_controller) and (self.pwr_controller.single_ended == True):
+            self.pwr_controller.power_down()    # Turn off device power if +ve supply only is controlled
+            pyb.delay(10)                       # No point waggling pins if there's no gnd...
         Pin_RESET.low()
         Pin_EPD_CS.low()
         # pulse discharge pin
         Pin_DISCHARGE.high()
         pyb.delay(150)
         Pin_DISCHARGE.low()
-        self.poweroff()                         # If -ve supply is also switched can't power off until here
+        if (self.pwr_controller) and (self.pwr_controller.single_ended == False):
+            self.pwr_controller.power_down()    # Turn off device power now if both supplies are controlled
 
 # One frame of data is the number of lines * rows. For example:
 # The 2.7” frame of data is 176 lines * 264 dots.
