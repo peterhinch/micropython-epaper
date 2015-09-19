@@ -101,12 +101,12 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, side = 'Y', use_flash = False, pwr_controller = None):
+    def __init__(self, side = 'L', use_flash = False, pwr_controller = None):
         self.flash = None                       # Assume flash is unused
         try:
-            self.intside = {'x':1, 'X':1, 'y':0,'Y':0}[side]
+            self.intside = {'x':1, 'X':1, 'y':0,'Y':0, 'l':0, 'L':0, 'r':1, 'R':1}[side]
         except KeyError:
-            raise ValueError("Side must be 'X' or 'Y'")
+            raise ValueError("Side must be 'L' or 'R'")
         self.pwr_controller = pwr_controller
 
         self.epd = EPD(self.intside, pwr_controller)

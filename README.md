@@ -49,9 +49,10 @@ The display is supplied with a 14 way ribbon cable. The easiest way to connect
 it to the Pyboard is to cut this cable in half and wire one half of it (each half is identical)
 as follows. I fitted the Pyboard with socket headers and wired the display cable to a
 14 way pin header, enabling it to be plugged in to either side of the Pyboard (the two
-sides, labelled X and Y on the board, are symmetrical).
+sides are symmetrical). I have labelled them L and R indicating the left and right sides
+of the board as seen with the USB connector at the top.
 
-| display | signal     |  Y  |  X  | Python name   |
+| display | signal     |  L  |  R  | Python name   |
 |:-------:|:----------:|:---:|:---:|:-------------:|
 |  1      | GND        | GND | GND |               |
 |  2      | 3V3        | 3V3 | 3V3 |               |
@@ -88,11 +89,11 @@ them short!
 
 # Getting started
 
-Assuming the device is connected on the 'Y' side simply cut and paste this at the REPL.
+Assuming the device is connected on the 'L' side simply cut and paste this at the REPL.
 
 ```python
 import epaper
-a = epaper.Display('Y')
+a = epaper.Display('L')
 a.rect(20, 20, 150, 150, 3)
 a.show()
 ```
@@ -154,7 +155,7 @@ slow when you write a string using a large font. In the meantime be patient. Or 
 ### Methods
 
 ``Display()`` The constructor has the following arguments:
- 1. ``side`` This must be 'X' or 'Y' depending on the side of the Pyboard in use. Default 'Y'.
+ 1. ``side`` This must be 'L' or 'R' depending on the side of the Pyboard in use. Default 'L'.
  2. ``use_flash`` Mounts the flash drive as /fc for general use. Default False.
  3. ``pwr_controller`` Optional PowerController instance for micropower support. Default None.
 

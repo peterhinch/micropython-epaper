@@ -19,6 +19,7 @@ import pyb
 
 class PowerController(object):
     def __init__(self, pin_active_high, pin_active_low):
+        self.upcount = 0
         if pin_active_low is not None:          # Start with power down
             self.al = pyb.Pin(pin_active_low, mode = pyb.Pin.OUT_PP)
             self.al.high()
@@ -31,19 +32,28 @@ class PowerController(object):
             self.ah = None
 
     def power_up(self):
-        if self.ah is not None:
-            self.ah.high()                      # Enable I2C pullups
-        if self.al is not None:
-            self.al.low()                       # Power up
-        pyb.delay(10)                           # Nominal time for device to settle
+        self.upcount += 1                       # Cope with nested calls
+        if self.upcount == 1:
+            if self.ah is not None:
+                self.ah.high()                  # Enable I2C pullups
+            if self.al is not None:
+                self.al.low()                   # Power up
+            pyb.delay(10)                       # Nominal time for device to settle
 
     def power_down(self):
-        if self.al is not None:
-            self.al.high()                      # Power off
-        pyb.delay(10)                           # Avoid glitches on I2C bus while power decays
-        if self.ah is not None:
-            self.ah.low()                       # Disable I2C pullups
+        if self.upcount > 1:
+            self.upcount -= 1
+        elif self.upcount == 1:
+            self.upcount = 0
+            if self.al is not None:
+                self.al.high()                  # Power off
+            pyb.delay(10)                       # Avoid glitches on switched
+            if self.ah is not None:             # I2C bus while power decays
+                self.ah.low()                   # Disable I2C pullups
+        for bus in (pyb.SPI(1), pyb.SPI(2), pyb.I2C(1), pyb.I2C(2)):
+            bus.deinit()                        # I2C drivers seem to need this
 
     @property
     def single_ended(self):
         return (self.ah is not None) and (self.al is not None)
+
