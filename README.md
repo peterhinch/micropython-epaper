@@ -246,7 +246,7 @@ SD card - modify this for any available file).
 
 ```python
 import pyb, flash, os
-f = flash.FlashClass(0) # If on X side pass 1
+f = flash.FlashClass(0) # If on right hand side pass 1
 f.low_level_format()
 pyb.mount(f, f.mountpoint, mkfs=True)
 flash.cp('/sd/LiberationSerif-Regular45x44','/fc/')
@@ -264,6 +264,13 @@ trailing '/'. If an OSError is thrown (e.g. by the source file not existing) it 
 to the caller to handle it.
 
 ## FlashClass
+
+### Constructor
+
+``FlashClass()`` This takes two arguments:
+ 1. ``intside`` Indicates whether the device is mounted on the left (0) or right hand (1) side of the Pyboard
+ (as deined above).
+ 2. ``pwr_controller`` Default: ``None`` Optional PowerController object.
 
 ### Methods providing the block protocol
 
@@ -284,7 +291,7 @@ The following methods are available for general use.
 ``end()`` Sync the device then shut down the bus.  
 ``low_level_format()`` Erases the filesystem! Currently (this may change) the pyb module doesn't
 provide a means of forcing a drive format. Issuing a ``low_level_format()`` followed by
-``pyb.mount()`` with ``mkfs-True`` will format the drive deleting all files.
+``pyb.mount()`` with ``mkfs=True`` will format the drive deleting all files.
 
 Other than for debugging there is no need to call ``available()``: the constructor will throw
 a ``FlashException`` if it fails to communicate with and correctly identify the chip.

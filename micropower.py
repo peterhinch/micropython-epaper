@@ -31,6 +31,13 @@ class PowerController(object):
         else:
             self.ah = None
 
+    def __enter__(self):                        # Optional use as context manager
+        self.power_up()
+        return self
+
+    def __exit__(self, *_):
+        self.power_down()
+
     def power_up(self):
         self.upcount += 1                       # Cope with nested calls
         if self.upcount == 1:
