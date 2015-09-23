@@ -1,7 +1,7 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.45
+# version 0.5
 # 29th Aug 2015 Improved power control support
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
@@ -28,7 +28,6 @@
 
 import pyb 
 from panel import PINS
-from micropower import PowerController
 
 # Winbond W25Q32 command set
 FLASH_WREN = const(0x06)

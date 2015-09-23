@@ -1,6 +1,7 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.45
+# version 0.5
+# 23rd Sep 2015 Checks for out of date firmware on load
 # 29th Aug 2015 Improved power control support
 # 16th Aug 2015 Bitmap file display supports small bitmaps. Code is more generic
 # 13th Aug 2015 Support for external power control hardware
@@ -23,8 +24,19 @@
 
 from flash import FlashClass
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
-from micropower import PowerController
 import pyb, os
+
+def buildcheck(tupTarget):
+    fail = True
+    if 'uname' in dir(os):
+        datestring = os.uname()[3]
+        date = datestring.split(' on')[1]
+        idate = tuple([int(x) for x in date.split('-')])
+        fail = idate < tupTarget
+    if fail:
+        raise OSError('This driver requires a firmware build dated {:4d}-{:02d}-{:02d} or later'.format(*tupTarget))
+
+buildcheck((2015,7,28))
 
 NEWLINE = const(10)             # ord('\n')
 
