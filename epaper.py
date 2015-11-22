@@ -358,9 +358,9 @@ class Display(object):
         fontbuf = self.font.fontfile.read(self.font.bytes_per_ch)
                                                 # write out the character
         for bit_vert in range(self.font.bits_vert):   # for each vertical line
+            bytenum = bit_vert >> 3
+            bit = 1 << (bit_vert & 0x07)        # Faster than divmod
             for bit_horiz in range(self.font.bits_horiz): #  horizontal line
-                bytenum = bit_vert >> 3
-                bit = 1 << (bit_vert & 0x07)    # Faster than divmod
                 fontbyte = fontbuf[self.font.bytes_vert * bit_horiz + bytenum +1]
                 self.setpixelfast(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
         self.char_x += fontbuf[0]               # width of current char
