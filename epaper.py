@@ -22,7 +22,6 @@
 
 # Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
 
-from flash import FlashClass
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
 import pyb, os
 
@@ -127,6 +126,7 @@ class Display(object):
 
         self.mounted = False                    # umountflash() not to sync
         if use_flash:
+            from flash import FlashClass
             self.flash = FlashClass(self.intside, pwr_controller)
             self.umountflash()                  # In case mounted by prior tests.
             if self.pwr_controller is None:     # Normal operation: flash is mounted continuously
