@@ -206,6 +206,17 @@ properties or methods. A font is instantiated for the duration of outputting one
 strings. It must be provided with the path to a valid binary font file. See the code
 sample above.
 
+By default fonts are proportional. The way font files are created this even applies to
+fonts designed for fixed-pitch display: they will be rendered in a proportional manner by default.
+Where true monospaced output is required, for best results a non-proportional font should be used.
+It can then be employed as follows:
+
+```python
+a.clear_screen()
+with a.font('/sd/inconsolata', monospaced = True):
+ a.puts("Large font\ntext here")
+```
+
 In the interests of conserving scarce RAM, fonts are stored in binary files. Individual
 characters are buffered in RAM as required. This contrasts with the conventional approach of
 buffering the entire font in RAM, which is faster. The EPD is not a fast device and RAM is

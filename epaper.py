@@ -1,6 +1,7 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.5
+# version 0.6
+# 29th Jan 2016 Monospaced fonts supported too.
 # 23rd Sep 2015 Checks for out of date firmware on load
 # 29th Aug 2015 Improved power control support
 # 16th Aug 2015 Bitmap file display supports small bitmaps. Code is more generic
@@ -82,10 +83,12 @@ class Font(object):
         self.bytes_vert = 0     # No. of bytes per character column
         self.bits_horiz = 0     # Horzontal bits in character matrix
         self.bits_vert = 0      # Vertical bits in character matrix
+        self.monospaced = False # Default is variable width
         self.exists = False
 
-    def __call__(self, fontfilename):
+    def __call__(self, fontfilename, monospaced = False):
         self.fontfilename = fontfilename
+        self.monospaced = monospaced
         return self
 
     def __enter__(self): #fopen(self, fontfile):
@@ -349,21 +352,26 @@ class Display(object):
         self.char_y = y
 
     def _character(self, c):
-        if (self.char_x + self.font.bits_horiz) > BITS_PER_LINE :
+        font = self.font                        # Cache for speed
+        ff = font.fontfile
+        bv = font.bits_vert
+        ff.seek(self.FONT_HEADER_LENGTH + (c -32) * font.bytes_per_ch)
+        fontbuf = ff.read(font.bytes_per_ch)
+        bh = font.bits_horiz if font.monospaced else fontbuf[0] # Char width
+
+        if (self.char_x + bh) > BITS_PER_LINE :
             self.char_x = 0
-            self.char_y += self.font.bits_vert
-            if self.char_y >= (LINES_PER_DISPLAY - self.font.bits_vert):
+            self.char_y += bv
+            if self.char_y >= (LINES_PER_DISPLAY - bv):
                 self.char_y = 0
-        self.font.fontfile.seek(self.FONT_HEADER_LENGTH + (c -32) * self.font.bytes_per_ch)
-        fontbuf = self.font.fontfile.read(self.font.bytes_per_ch)
                                                 # write out the character
-        for bit_vert in range(self.font.bits_vert):   # for each vertical line
+        for bit_vert in range(bv):   # for each vertical line
             bytenum = bit_vert >> 3
             bit = 1 << (bit_vert & 0x07)        # Faster than divmod
-            for bit_horiz in range(self.font.bits_horiz): #  horizontal line
-                fontbyte = fontbuf[self.font.bytes_vert * bit_horiz + bytenum +1]
+            for bit_horiz in range(bh): #  horizontal line
+                fontbyte = fontbuf[font.bytes_vert * bit_horiz + bytenum +1]
                 self.setpixelfast(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
-        self.char_x += fontbuf[0]               # width of current char
+        self.char_x += bh                       # width of current char
 
     def _putc(self, value):                     # print char
         if (value == NEWLINE):
