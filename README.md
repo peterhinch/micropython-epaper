@@ -1,8 +1,9 @@
 # micropython-epaper
+
 A driver to enable the Pyboard to access a 2.7 inch e-paper display from
-[Embedded Artists](www.embeddedartists.com/products/displays/lcd_27_epaper.php)
-This can be bought from [Adafruit](www.adafruit.com) and in Europe from
-[Cool Components](www.coolcomponents.co.uk).
+[Embedded Artists](http://www.embeddedartists.com/products/displays/lcd_27_epaper.php)
+This can be bought from [Adafruit](http://www.adafruit.com) and in Europe from
+[Cool Components](http://www.coolcomponents.co.uk).
 This driver requires a Pyboard with firmware dated 28th July 2015 or later: an exception
 will be raised on import if this condition is not met.
 
