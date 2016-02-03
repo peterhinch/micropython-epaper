@@ -27,7 +27,6 @@
 # a block is 512 bytes, this is defined in the block protocol for FAT
 
 import pyb 
-from panel import PINS
 
 # Winbond W25Q32 command set
 FLASH_WREN = const(0x06)
@@ -86,9 +85,11 @@ DIRTY = const(1)
 
 class FlashClass(object):
     def __init__(self, intside, pwr_controller = None):
+        from panel import getpins
+        pins = getpins(intside)
         self.pwr_controller = pwr_controller
-        self.spi_no = PINS['SPI_BUS'][intside]
-        self.pinCS = pyb.Pin(PINS['FLASH_CS'][intside], mode = pyb.Pin.OUT_PP)
+        self.spi_no = pins['SPI_BUS']
+        self.pinCS = pyb.Pin(pins['FLASH_CS'], mode = pyb.Pin.OUT_PP)
         self.buff0 = bytearray(FLASH_SECTOR_SIZE)
         self.buff1 = bytearray(FLASH_SECTOR_SIZE)
         self.current_sector = None              # Current flash sector number for writing

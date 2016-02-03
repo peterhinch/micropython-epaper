@@ -23,8 +23,9 @@
 
 # Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
 
+import pyb, os, gc
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
-import pyb, os
+gc.collect()
 
 def buildcheck(tupTarget):
     fail = True
@@ -125,6 +126,7 @@ class Display(object):
 
         self.epd = EPD(self.intside, pwr_controller)
         self.font = Font()
+        gc.collect()
         self.locate(0, 0)                       # Text cursor: default top left
 
         self.mounted = False                    # umountflash() not to sync
@@ -134,6 +136,7 @@ class Display(object):
             self.umountflash()                  # In case mounted by prior tests.
             if self.pwr_controller is None:     # Normal operation: flash is mounted continuously
                 self.mountflash()
+        gc.collect()
 
     def mountflash(self):
         if self.flash is None:                  # Not being used
