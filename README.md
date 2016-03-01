@@ -369,7 +369,7 @@ supply, waits 10mS then disables the pullups.
 
 As explained above, the driver requires fonts to be provided in a specific binary file format. This
 section describes how to produce these. Alas this needs a Windows program available
-[here](http://www.mikroe.com/glcd-font-creator/) but it is free (as in beer).
+[here](http://www.mikroe.com/glcd-font-creator/) but it is free (as in beer) and it runs under wine.
 
 To convert a system font to a usable format follow these steps.  
 Start the Font Creator. Select File - New Font - Import an Existing System Font and select a font.
@@ -427,3 +427,5 @@ Further sources of information:
 [COG interface timing](http://www.pervasivedisplays.com/_literature_220873/COG_Driver_Interface_Timing_for_small_size_G2_V231)  
 [Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf)  
 [RePaper](http://repaper.org/doc/cog_driving.html)
+
+Notes on the font file layout are available [here](https://github.com/peterhinch/micropython-samples/blob/master/font/README.md)
