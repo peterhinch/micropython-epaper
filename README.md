@@ -387,6 +387,7 @@ accessible as described above. Test by issuing, at the Pyboard REPL,
 ```
 import fonts
 ```
+If no error is thrown, ``fonts.py`` is frozen in the firmware.
 
 # Micropower Support
 
