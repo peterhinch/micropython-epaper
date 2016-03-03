@@ -64,10 +64,9 @@ class EPDException(Exception):
     pass
 
 class EPD(object):
-    def __init__(self, intside, pwr_controller = None):
+    def __init__(self, intside):
         gc.collect()
         from panel import getpins
-        self.pwr_controller = pwr_controller
         self.image = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY)
         self.linebuf = bytearray(BYTES_PER_LINE * 2 + BYTES_PER_SCAN)
         pins = getpins(intside)
@@ -88,8 +87,7 @@ class EPD(object):
         self.Pin_FLASH_CS.high()
         self.spi_no = pins['SPI_BUS']
         self.i2c_no = pins['I2C_BUS']
-        if self.pwr_controller is None:         # If we're powered up instantiate LM75 to throw
-            self.lm75 = LM75(self.i2c_no)       # early error if not working
+        self.lm75 = LM75(self.i2c_no)           # early error if not working
 
 # USER INTERFACE
 
@@ -105,19 +103,11 @@ class EPD(object):
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
-        if self.pwr_controller:
-            self.pwr_controller.power_up()      # Apply power if controlled
-            lm75 = LM75(self.i2c_no)            # Instantiate LM75 for the duration of power
-            temperature = lm75.temperature
-            self.pwr_controller.power_down()
-            return temperature
-        return self.lm75.temperature            # Permanent power
+        return self.lm75.temperature
 
 # END OF USER INTERFACE
 
     def __enter__(self):                        # power up sequence
-        if self.pwr_controller:
-            self.pwr_controller.power_up()      # Apply power if controlled
         self.status = EPD_OK
         self.Pin_RESET.low()
         self.Pin_PANEL_ON.low()
@@ -224,11 +214,7 @@ class EPD(object):
         # stage1: repeat, step, block
         # stage2: repeat, t1, t2
         # stage3: repeat, step, block
-        if self.pwr_controller:                 # powered up, no LM75 instance, must not power down
-            lm75 = LM75(self.i2c_no)            # Instantiate LM75
-            temperature = lm75.temperature
-        else:
-            temperature = self.lm75.temperature
+        temperature = self.lm75.temperature
         if temperature < 10 :
             self.compensation = {'stage1_repeat':2, 'stage1_step':8, 'stage1_block':64,
                                  'stage2_repeat':4, 'stage2_t1':392, 'stage2_t2':392,
@@ -295,17 +281,12 @@ class EPD(object):
         self.Pin_MOSI.low()
         self.Pin_BORDER.low()
         # ensure SPI MOSI and CLOCK are Low before CS Low
-        if (self.pwr_controller) and (self.pwr_controller.single_ended == True):
-            self.pwr_controller.power_down()    # Turn off device power if +ve supply only is controlled
-            pyb.delay(10)                       # No point waggling pins if there's no gnd...
         self.Pin_RESET.low()
         self.Pin_EPD_CS.low()
         # pulse discharge pin
         self.Pin_DISCHARGE.high()
         pyb.delay(150)
         self.Pin_DISCHARGE.low()
-        if (self.pwr_controller) and (self.pwr_controller.single_ended == False):
-            self.pwr_controller.power_down()    # Turn off device power now if both supplies are controlled
 
 # One frame of data is the number of lines * rows. For example:
 # The 2.7” frame of data is 176 lines * 264 dots.

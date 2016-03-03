@@ -1,8 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.5
-# 29th Aug 2015 Improved power control support
+# version 0.6
+# 2 Mar 2016 Power control support removed
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
 #
@@ -84,10 +84,9 @@ BUFFER = const(0)                               # Indices into sector descriptor
 DIRTY = const(1)
 
 class FlashClass(object):
-    def __init__(self, intside, pwr_controller = None):
+    def __init__(self, intside):
         from panel import getpins
         pins = getpins(intside)
-        self.pwr_controller = pwr_controller
         self.spi_no = pins['SPI_BUS']
         self.pinCS = pyb.Pin(pins['FLASH_CS'], mode = pyb.Pin.OUT_PP)
         self.buff0 = bytearray(FLASH_SECTOR_SIZE)
@@ -100,8 +99,6 @@ class FlashClass(object):
 
     def begin(self):                            # Baud rates of 50MHz supported by chip
         self.pinCS.high()
-        if self.pwr_controller:
-            self.pwr_controller.power_up()      # Apply power if controlled
         self.spi = pyb.SPI(self.spi_no, pyb.SPI.MASTER, baudrate = 21000000, polarity = 1, phase = 1, bits = 8)
         if not self._available():               # Includes 1mS wakeup delay
             raise FlashException("Unsupported flash device")
@@ -110,8 +107,6 @@ class FlashClass(object):
         self.sync()
         self.pinCS.high()
         self.spi.deinit()
-        if self.pwr_controller:
-            self.pwr_controller.power_down()    # Turn off device power if controlled
 
     def _available(self):                       # return True if the chip is supported
         self.info()                             # initial read to reset the chip

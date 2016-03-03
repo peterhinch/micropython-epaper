@@ -1,11 +1,9 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.6
+# version 0.7
+# 2 Mar 2016 Power control support removed. Support for fonts as persistent byte code
 # 29th Jan 2016 Monospaced fonts supported too.
 # 23rd Sep 2015 Checks for out of date firmware on load
-# 29th Aug 2015 Improved power control support
-# 16th Aug 2015 Bitmap file display supports small bitmaps. Code is more generic
-# 13th Aug 2015 Support for external power control hardware
 
 # Copyright 2015 Peter Hinch
 #
@@ -23,9 +21,14 @@
 
 # Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
 
-import pyb, os, gc
+import pyb, os, gc, pyfont
 from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
 gc.collect()
+frozen_fonts = True
+try:
+    from fonts import fonts
+except ImportError:
+    frozen_fonts = False
 
 def buildcheck(tupTarget):
     fail = True
@@ -86,6 +89,10 @@ class Font(object):
         self.bits_vert = 0      # Vertical bits in character matrix
         self.monospaced = False # Default is variable width
         self.exists = False
+        self.fontbuf = None
+        self.fontfilename = None
+        self.fontfile = None
+        self.nchars = 0
 
     def __call__(self, fontfilename, monospaced = False):
         self.fontfilename = fontfilename
@@ -93,38 +100,49 @@ class Font(object):
         return self
 
     def __enter__(self): #fopen(self, fontfile):
-        try:
-            f = open(self.fontfilename, 'rb')
-        except OSError as err:
-            raise FontFileError(err)
-        self.fontfile = f
-        header = f.read(4)
-        if header[0] == 0x3f and header[1] == 0xe7:
-            self.bits_horiz = header[2] # font[1]
-            self.bits_vert = header[3] # font[2]
-            div, mod = divmod(self.bits_vert, 8)
-            self.bytes_vert = div if mod == 0 else div +1 # font[3]
-            self.bytes_per_ch = self.bytes_vert * self.bits_horiz +1 # font[0]
+        if frozen_fonts and self.fontfilename in fonts:
+            self.fontfile = None
+            f = fonts[self.fontfilename]
+            self.fontbuf = f.font
+            self.bytes_per_ch = f.bytes_per_ch
+            self.bytes_vert = f.bytes_vert
+            self.bits_horiz = f.bits_horiz
+            self.bits_vert = f.bits_vert
+            self.nchars = f.nchars
         else:
-             raise FontFileError("Font file is invalid")
+            self.fontbuf = None
+            try:
+                f = open(self.fontfilename, 'rb')
+            except OSError as err:
+                raise FontFileError(err)
+            self.fontfile = f
+            header = f.read(4)
+            if header[0] == 0x3f and header[1] == 0xe7:
+                self.bits_horiz = header[2] # font[1]
+                self.bits_vert = header[3] # font[2]
+                div, mod = divmod(self.bits_vert, 8)
+                self.bytes_vert = div if mod == 0 else div +1 # font[3]
+                self.bytes_per_ch = self.bytes_vert * self.bits_horiz +1 # font[0]
+            else:
+                raise FontFileError("Font file is invalid")
         self.exists = True
         return self
 
     def __exit__(self, *_):
         self.exists = False
-        self.fontfile.close()
+        if self.fontfile is not None:
+            self.fontfile.close()
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, side = 'L', use_flash = False, pwr_controller = None):
+    def __init__(self, side = 'L', use_flash = False):
         self.flash = None                       # Assume flash is unused
         try:
             self.intside = {'x':1, 'X':1, 'y':0,'Y':0, 'l':0, 'L':0, 'r':1, 'R':1}[side]
         except KeyError:
             raise ValueError("Side must be 'L' or 'R'")
-        self.pwr_controller = pwr_controller
 
-        self.epd = EPD(self.intside, pwr_controller)
+        self.epd = EPD(self.intside)
         self.font = Font()
         gc.collect()
         self.locate(0, 0)                       # Text cursor: default top left
@@ -132,20 +150,19 @@ class Display(object):
         self.mounted = False                    # umountflash() not to sync
         if use_flash:
             from flash import FlashClass
-            self.flash = FlashClass(self.intside, pwr_controller)
+            self.flash = FlashClass(self.intside)
             self.umountflash()                  # In case mounted by prior tests.
-            if self.pwr_controller is None:     # Normal operation: flash is mounted continuously
-                self.mountflash()
+            self.mountflash()
         gc.collect()
 
     def mountflash(self):
         if self.flash is None:                  # Not being used
             return
-        self.flash.begin()                      # Turn on power if under control. Initialise.
+        self.flash.begin()                      # Initialise.
         pyb.mount(self.flash, self.flash.mountpoint)
         self.mounted = True
 
-    def umountflash(self):                      # Unmount flash and power it down
+    def umountflash(self):                      # Unmount flash
         if self.flash is None:
             return
         if self.mounted:
@@ -154,7 +171,7 @@ class Display(object):
             pyb.mount(None, self.flash.mountpoint)
         except OSError:
             pass                                # Don't care if it wasn't mounted
-        self.flash.end()                        # Shut down, turn off power if under control
+        self.flash.end()                        # Shut down
         self.mounted = False                    # flag unmounted to prevent spurious syncs
 
     def show(self):
@@ -162,9 +179,7 @@ class Display(object):
                                                 # EPD functions which access the display electronics must be
         with self.epd as epd:                   # called from a with block to ensure proper startup & shutdown
             epd.showdata()
-
-        if self.pwr_controller is None:         # Normal operation without power control: remount
-            self.mountflash()
+        self.mountflash()
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
@@ -354,7 +369,7 @@ class Display(object):
         self.char_x = x                         # Text input cursor to (x, y)
         self.char_y = y
 
-    def _character(self, c):
+    def _character(self, c):                    # Output from file
         font = self.font                        # Cache for speed
         ff = font.fontfile
         bv = font.bits_vert
@@ -368,29 +383,59 @@ class Display(object):
             if self.char_y >= (LINES_PER_DISPLAY - bv):
                 self.char_y = 0
                                                 # write out the character
-        for bit_vert in range(bv):   # for each vertical line
+        for bit_vert in range(bv):              # for each vertical line
             bytenum = bit_vert >> 3
             bit = 1 << (bit_vert & 0x07)        # Faster than divmod
-            for bit_horiz in range(bh): #  horizontal line
+            for bit_horiz in range(bh):         #  horizontal line
                 fontbyte = fontbuf[font.bytes_vert * bit_horiz + bytenum +1]
                 self.setpixelfast(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
         self.char_x += bh                       # width of current char
 
-    def _putc(self, value):                     # print char
+    def _char(self, c):                         # Output from frozen bytecode
+        font = self.font                        # Cache for speed
+        bv = font.bits_vert
+        bytes_vert = font.bytes_vert
+        fontbuf = font.fontbuf
+        relch = c - 32
+        if relch > font.nchars:
+            raise ValueError('Illegal character')
+        offset = relch * font.bytes_per_ch
+        bh = font.bits_horiz if font.monospaced else fontbuf[offset] # Char width
+        offset += 1                             # Font data
+
+        if (self.char_x + bh) > BITS_PER_LINE :
+            self.char_x = 0
+            self.char_y += bv
+            if self.char_y >= (LINES_PER_DISPLAY - bv):
+                self.char_y = 0
+                                                # write out the character
+        for bit_vert in range(bv):              # for each vertical line
+            bytenum = bit_vert >> 3
+            bit = 1 << (bit_vert & 0x07)        # Faster than divmod
+            for bit_horiz in range(bh): #  horizontal line
+                fontbyte = fontbuf[offset + bytes_vert * bit_horiz + bytenum]
+                self.setpixelfast(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
+        self.char_x += bh                       # width of current char
+
+    def _putc(self, value, usefile):            # print char
         if (value == NEWLINE):
             self.char_x = 0
             self.char_y += self.font.bits_vert
             if (self.char_y >= LINES_PER_DISPLAY - self.font.bits_vert):
                 self.char_y = 0
-        else: 
-            self._character(value)
+        else:
+            if usefile:
+                self._character(value)          # From file
+            else:
+                self._char(value)               # From frozen bytecode
         return value
 
     def puts(self, s):                          # Output a string at cursor
         if self.font.exists:
+            usefile = self.font.fontbuf is None
             for char in s:
                 c = ord(char)
                 if (c > 31 and c < 128) or c == NEWLINE:
-                    self._putc(c)
+                    self._putc(c, usefile)
         else:
              raise FontFileError("There is no current font")
