@@ -222,8 +222,8 @@ in this case the flash device is mounted automatically.
 
 ## Font class
 
-This is a Python context manager whose purpose is to define a context for the ``Display`` ``puts()``
-method described above. It ensures that the font file is closed after use. It has no user
+This is a Python context manager whose purpose is to define a context for the Display's ``puts()``
+method described above. It ensures that any font file is closed after use. It has no user
 accessible properties or methods. A font is instantiated for the duration of outputting one or more
 strings. It must be provided with the path to a valid binary font file or the name of a frozen
 font. See the code sample above.
@@ -303,9 +303,8 @@ non-existent source file) it is up to the caller to handle it.
 
 ### Constructor
 
-``FlashClass()`` This takes one argument:  
-``intside`` Indicates whether the device is mounted on the left (0) or right hand (1) side of the
-Pyboard (as defined above).
+``FlashClass()`` This takes one argument ``intside`` Indicates whether the device is mounted on the
+left (0) or right hand (1) side of the Pyboard (as defined above).
 
 ### Methods providing the block protocol
 
