@@ -170,18 +170,32 @@ patient. Or offer a patch :)
 ``clear_screen()`` Clears the screen. Argument ``show`` Default True. This blanks the screen buffer
 and resets the text cursor. If ``show`` is set it also displays the result by calling the
 ``show()`` method.  
+
 ``show()`` Displays the contents of the screen buffer.  
+
 ``line()`` Draw a line. Arguments ``X0, Y0, X1, Y1, Width, Black``. Defaults: width = 1 pixel,
 Black = True.  
+
 ``rect()`` Draw a rectangle. Arguments ``X0, Y0, X1, Y1, Width, Black``. Defaults: width = 1 pixel,
 Black = True.  
+
 ``fillrect()`` Draw a filled rectangle. Arguments ``X0, Y0, X1, Y1, Black``. Defaults: Black = True.  
+
 ``circle()`` Draw a circle. Arguments ``x0, y0, r, width, black``. Defaults: width = 1 pixel,
 Black = True. x0, y0 are the coordinates of the centre, r is the radius.  
+
 ``fillcircle()`` Draw a filled circle. Arguments ``x0, y0, r, black``. Defaults: Black = True.  
+
 ``load_xbm()`` Load an image formatted as an XBM file. Arguments ``sourcefile, x0, y0``: Path
 to the XBM file followed by coordinates defaulting to 0, 0.  
+
+``loadgfx()`` Fill a rectangular area with a bitmap. Arguments: ``gen, width, height, x0, y0`` where
+gen ia a generator supplying bytes for each line in turn. These are displayed left to right, LSB of
+the 1st byte being at the top LH corner. Unused bits at the end of the line are # ignored with a
+new line starting on the next byte.
+
 ``locate()`` This sets the pixel location of the text cursor. Arguments ``x, y``.  
+
 ``puts()`` Write a text string to the buffer. Argument ``s``, the string to display. This must
 be called from a ``with`` block that defines the font; text will be rendered to the pixel location
 of the text cursor. Newline characters and line wrapping are supported. Example usage:

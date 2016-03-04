@@ -323,9 +323,7 @@ class Display(object):
         height = next(g)
         self.loadgfx(g, width, height, x, y)
 
-# Load a rectangular region with a bitmap supplied by a generator. This must supply bytes for each line in turn. These
-# are displyed left to right, LSB of the 1st byte being at the top LH corner. Unused bits at the end of the line are
-# ignored with a  new line starting on the next byte.
+# Load a rectangular region with a bitmap supplied by a generator.
 
     def loadgfx(self, gen, width, height, x0, y0):
         byteoffset = x0 >> 3
