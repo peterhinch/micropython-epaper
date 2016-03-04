@@ -177,7 +177,7 @@ Black = True.
 Black = True.  
 ``fillrect()`` Draw a filled rectangle. Arguments ``X0, Y0, X1, Y1, Black``. Defaults: Black = True.  
 ``circle()`` Draw a circle. Arguments ``x0, y0, r, width, black``. Defaults: width = 1 pixel,
-Black = True. x0, y0 are the coordinates of the centre, r is the radius.
+Black = True. x0, y0 are the coordinates of the centre, r is the radius.  
 ``fillcircle()`` Draw a filled circle. Arguments ``x0, y0, r, black``. Defaults: Black = True.  
 ``load_xbm()`` Load an image formatted as an XBM file. Arguments ``sourcefile, x0, y0``: Path
 to the XBM file followed by coordinates defaulting to 0, 0.  
