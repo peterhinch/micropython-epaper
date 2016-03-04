@@ -191,8 +191,8 @@ to the XBM file followed by coordinates defaulting to 0, 0.
 
 ``loadgfx()`` Fill a rectangular area with a bitmap. Arguments: ``gen, width, height, x0, y0`` where
 gen ia a generator supplying bytes for each line in turn. These are displayed left to right, LSB of
-the 1st byte being at the top LH corner. Unused bits at the end of the line are # ignored with a
-new line starting on the next byte.
+the 1st byte being at the top LH corner. Unused bits at the end of the line are ignored with a new
+line starting on the next byte.
 
 ``locate()`` This sets the pixel location of the text cursor. Arguments ``x, y``.  
 
