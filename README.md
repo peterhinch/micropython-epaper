@@ -180,7 +180,7 @@ Black = True.
 Black = True. x0, y0 are the coordinates of the centre, r is the radius.
 ``fillcircle()`` Draw a filled circle. Arguments ``x0, y0, r, black``. Defaults: Black = True.  
 ``load_xbm()`` Load an image formatted as an XBM file. Arguments ``sourcefile, x0, y0``: Path
-to the XBM file followed by coordinates defaulting to 0, 0.
+to the XBM file followed by coordinates defaulting to 0, 0.  
 ``locate()`` This sets the pixel location of the text cursor. Arguments ``x, y``.  
 ``puts()`` Write a text string to the buffer. Argument ``s``, the string to display. This must
 be called from a ``with`` block that defines the font; text will be rendered to the pixel location
