@@ -19,6 +19,8 @@
 # governing permissions and limitations under the License.
 
 import pyb, gc
+EMBEDDED_ARTISTS = const(0)
+ADAFRUIT = const(1)
 
 EPD_OK = const(0) # error codes
 EPD_UNSUPPORTED_COG = const(1)
@@ -64,7 +66,8 @@ class EPDException(Exception):
     pass
 
 class EPD(object):
-    def __init__(self, intside):
+    def __init__(self, intside, model):
+        self.model = model
         gc.collect()
         from panel import getpins
         self.image = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY)
@@ -86,8 +89,8 @@ class EPD(object):
         self.Pin_EPD_CS.low()
         self.Pin_FLASH_CS.high()
         self.spi_no = pins['SPI_BUS']
-        self.i2c_no = pins['I2C_BUS']
-        self.lm75 = LM75(self.i2c_no)           # early error if not working
+        if model == EMBEDDED_ARTISTS:
+            self.lm75 = LM75(pins['I2C_BUS'])   # early error if not working
 
 # USER INTERFACE
 
@@ -103,7 +106,10 @@ class EPD(object):
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
-        return self.lm75.temperature
+        if self.model == EMBEDDED_ARTISTS:
+            return self.lm75.temperature
+        else:
+            return 25
 
 # END OF USER INTERFACE
 
@@ -214,7 +220,7 @@ class EPD(object):
         # stage1: repeat, step, block
         # stage2: repeat, t1, t2
         # stage3: repeat, step, block
-        temperature = self.lm75.temperature
+        temperature = self.temperature
         if temperature < 10 :
             self.compensation = {'stage1_repeat':2, 'stage1_step':8, 'stage1_block':64,
                                  'stage2_repeat':4, 'stage2_t1':392, 'stage2_t2':392,

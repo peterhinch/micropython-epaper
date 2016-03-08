@@ -22,7 +22,13 @@
 # Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
 
 import pyb, os, gc, pyfont
-from epd import EPD, LINES_PER_DISPLAY, BYTES_PER_LINE, BITS_PER_LINE
+LINES_PER_DISPLAY = const(176)
+BYTES_PER_LINE = const(33)
+BITS_PER_LINE = const(264)
+NORMAL = const(0)
+FAST = const(1)
+EMBEDDED_ARTISTS = const(0)
+ADAFRUIT = const(1)
 gc.collect()
 frozen_fonts = True
 try:
@@ -43,6 +49,13 @@ def buildcheck(tupTarget):
 buildcheck((2015,7,28))
 
 NEWLINE = const(10)             # ord('\n')
+
+class EPDError(OSError):
+    pass
+
+def checkstate(state, msg):
+    if not state:
+        raise EPDError(msg)
 
 # Generator parses an XBM file returning width, height, followed by data bytes
 def get_xbm_data(sourcefile):
@@ -135,14 +148,28 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, side = 'L', use_flash = False):
+    def __init__(self, side='L',*, mode=NORMAL, model=EMBEDDED_ARTISTS, use_flash=False, compensate_temp=True):
         self.flash = None                       # Assume flash is unused
+        self.in_context = False
         try:
-            self.intside = {'x':1, 'X':1, 'y':0,'Y':0, 'l':0, 'L':0, 'r':1, 'R':1}[side]
-        except KeyError:
+            self.intside = {'x':1, 'y':0, 'l':0, 'r':1}[side.lower()]
+        except (KeyError, AttributeError):
             raise ValueError("Side must be 'L' or 'R'")
-
-        self.epd = EPD(self.intside)
+        if model not in (EMBEDDED_ARTISTS, ADAFRUIT):
+            raise ValueError('Unsupported model')
+        if mode == FAST and use_flash:
+            raise ValueError('Flash memory unavailable in fast mode')
+        if mode == NORMAL and not compensate_temp:
+            raise ValueError('In normal mode compensate_temp must be True')
+        if mode == NORMAL:
+            from epd import EPD
+            self.epd = EPD(self.intside, model)
+        elif mode == FAST:
+            from epdpart import EPD
+            self.epd = EPD(self.intside, model, compensate_temp)
+        else:
+            raise ValueError('Unsupported mode {}'.format(mode))
+        self.mode = mode
         self.font = Font()
         gc.collect()
         self.locate(0, 0)                       # Text cursor: default top left
@@ -154,6 +181,21 @@ class Display(object):
             self.umountflash()                  # In case mounted by prior tests.
             self.mountflash()
         gc.collect()
+
+    def checkcm(self):
+        if not (self.mode == NORMAL or self.in_context):
+            raise EPDError('Fast mode must be run using a context manager')
+
+    def __enter__(self):                        # Power up
+        checkstate(self.mode == FAST, "In normal mode, can't use context manager")
+        self.in_context = True
+        self.epd.enter()
+        return self
+
+    def __exit__(self, *_):                     # shut down
+        self.in_context = False
+        self.epd.exit()
+        pass
 
     def mountflash(self):
         if self.flash is None:                  # Not being used
@@ -175,24 +217,41 @@ class Display(object):
         self.mounted = False                    # flag unmounted to prevent spurious syncs
 
     def show(self):
+        self.checkcm()
         self.umountflash()                      # sync, umount flash, shut it down and disable SPI
-                                                # EPD functions which access the display electronics must be
-        with self.epd as epd:                   # called from a with block to ensure proper startup & shutdown
-            epd.showdata()
+        if self.mode == NORMAL:                 # EPD functions which access the display electronics must be
+            with self.epd as epd:               # called from a with block to ensure proper startup & shutdown
+                epd.showdata()
+        else:                                   # Fast mode: already in context manager
+            self.epd.showdata()
         self.mountflash()
+
+    def clear_screen(self, show = True):
+        self.checkcm()
+        self.locate(0, 0)                       # Reset text cursor
+        self.epd.clear_data()
+        if show:
+            if self.mode == NORMAL:
+                self.show()
+            else:
+                self.epd.EPD_clear()
+
+    def refresh(self):                          # Fast mode only functions
+        checkstate(self.mode == FAST, 'refresh() invalid in normal mode')
+        self.checkcm()
+        self.epd.refresh()
+
+    def exchange(self):
+        checkstate(self.mode == FAST, 'exchange() invalid in normal mode')
+        self.checkcm()
+        self.epd.exchange()
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
         return self.epd.temperature
 
-    def clear_screen(self, show = True):
-        self.locate(0, 0)                       # Reset text cursor
-        self.epd.clear_data()
-        if show:
-            self.show()
-
     @micropython.native
-    def setpixel(self, x, y, black):            # 41uS. Clips to borders
+    def setpixel(self, x, y, black):            # 41uS. Clips to borders. x, y must be integer
         if y < 0 or y >= LINES_PER_DISPLAY or x < 0 or x >= BITS_PER_LINE :
             return
         image = self.epd.image
@@ -249,6 +308,7 @@ class Display(object):
             self.setpixel(x0, y0, black)
 
     def line(self, x0, y0, x1, y1, width =1, black = True): # Draw line
+        x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
         if abs(x1 - x0) > abs(y1 - y0): # < 45 degrees
             for w in range(-width//2 +1, width//2 +1):
                 self._line(x0, y0 +w, x1, y1 +w, black)
@@ -263,12 +323,14 @@ class Display(object):
         self.line(x1, y0, x1, y1, 1, black)
 
     def rect(self, x0, y0, x1, y1, width =1, black = True): # Draw rectangle
+        x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
         x0, x1 = (x0, x1) if x1 > x0 else (x1, x0) # x0, y0 is top left, x1, y1 is bottom right
         y0, y1 = (y0, y1) if y1 > y0 else (y1, y0)
         for w in range(width):
             self._rect(x0 +w, y0 +w, x1 -w, y1 -w, black)
 
     def fillrect(self, x0, y0, x1, y1, black = True): # Draw filled rectangle
+        x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
         x0, x1 = (x0, x1) if x1 > x0 else (x1, x0)
         y0, y1 = (y0, y1) if y1 > y0 else (y1, y0)
         for x in range(x0, x1):
@@ -295,10 +357,12 @@ class Display(object):
                 err += x*2 +1
 
     def circle(self, x0, y0, r, width =1, black = True): # Draw circle
+        x0, y0, r = int(x0), int(y0), int(r)
         for r in range(r, r -width, -1):
             self._circle(x0, y0, r, black)
 
     def fillcircle(self, x0, y0, r, black = True): # Draw filled circle
+        x0, y0, r = int(x0), int(y0), int(r)
         x = -r
         y = 0
         err = 2 -2*r

@@ -2,9 +2,13 @@
 
 A driver to enable the Pyboard to access a 2.7 inch e-paper display from
 [Embedded Artists](http://www.embeddedartists.com/products/displays/lcd_27_epaper.php)
-This can be bought from Mouser Electronics (a company with worldwide depots) e.g.
+This can also be bought from Mouser Electronics (a company with worldwide depots) e.g.
 [MouserUK](http://www.mouser.co.uk/ProductDetail/Embedded-Artists/EA-LCD-009/?qs=sGAEpiMZZMt7dcPGmvnkBrNVf0ehHpp1LPMnQSPTe1M%3d).
 Also available in Europe from [Cool Components](http://www.coolcomponents.co.uk).
+
+Experimental support for the Adafruit [module](https://learn.adafruit.com/repaper-eink-development-board)
+is provided but limited to the 2.7 inch display module.
+
 This driver requires a Pyboard with firmware dated 28th July 2015 or later: an exception
 will be raised on import if this condition is not met. If the facility to store fonts
 in Flash is employed a build with this capability must be used. As of 3rd March 2016
@@ -21,20 +25,31 @@ A time closer to 1.6s might be achieved by writing key methods in Assembler but 
 plans to do this. It is considerably faster than the Arduino code and as fast as the best
 alternative board I have seen.
 
-The EA rev D display includes an LM75 temperature sensor and a 4MB flash memory chip. The
-driver provides access to the current temperature. The display driver does not use the flash
-chip: the current image is buffered in RAM. An option is provided to mount the flash device
-in the Pyboard's filesystem enabling it to be used to store data such as images and fonts. This
-is the ``use_flash`` Display constructor argument. Setting this False will save over 8K of RAM.
+The Embedded Artists (EA) rev D display includes an LM75 temperature sensor and a 4MB flash memory
+chip. The driver provides access to the current temperature. The display driver does not use the
+flash chip: the current image is buffered in RAM. An option is provided to mount the flash device
+in the Pyboard's filesystem enabling it to be used to store data such as images and fonts. This is
+the ``use_flash`` Display constructor argument. Setting this False will save over 8K of RAM.
 
-An issue with the EA module is that the Flash memory and the display module use the
-SPI bus in different, incompatible ways. The driver provides a means of arbitration between
-these devices discussed below. This is transparent to the user of the Display class.
+An issue with the EA module is that the Flash memory and the display module use the SPI bus in
+different, incompatible ways. The driver provides a means of arbitration between these devices
+discussed below. This is transparent to the user of the Display class.
 
 One application area for e-paper displays is in ultra low power applications. The Pyboard 1.1
 in standby mode consumes about 7uA. To avoid adding to this an external circuit is required
 to turn off the power to the display and any other peripherals before entering standby. A way
 of achieving this is presented [here](https://github.com/peterhinch/micropython-micropower.git).
+
+This driver was ported from the RePaper reference designs [here](https://github.com/repaper/gratis.git).
+There are two reference drivers, one for resource constrained platforms (Arduino library) and 
+another for systems with an OS. The latter attempts faster screen writes by employing a double
+buffered algorithm. This MicroPython driver supports both modes. By default it uses the resource
+constrained "NORMAL" single buffered mode: the downside is slower updates with repeated black-white
+screen transitions.
+
+"FAST" mode is intended for display of (fairly) realtime data. It uses more RAM and also precludes
+the concurrent use of the display and its onboard Flash memory. The following instructions largely
+refer to NORMAL mode, the differences implied by FAST mode are covered in a separate section below.
 
 # The driver
 
@@ -50,34 +65,41 @@ sample images from Embedded Artists.
 
 # Connecting the display
 
-The display is supplied with a 14 way ribbon cable. The easiest way to connect
+The Embedded Artists display is supplied with a 14 way ribbon cable. The easiest way to connect
 it to the Pyboard is to cut this cable in half and wire one half of it (each half is identical)
 as follows. I fitted the Pyboard with socket headers and wired the display cable to a
 14 way pin header, enabling it to be plugged in to either side of the Pyboard (the two
 sides are symmetrical). I have labelled them L and R indicating the left and right sides
 of the board as seen with the USB connector at the top.
 
-| display | signal     |  L  |  R  | Python name   |
-|:-------:|:----------:|:---:|:---:|:-------------:|
-|  1      | GND        | GND | GND |               |
-|  2      | 3V3        | 3V3 | 3V3 |               |
-|  3      | SCK        | Y6  | X6  | (SPI bus)     |
-|  4      | MOSI       | Y8  | X8  |               |
-|  5      | MISO       | Y7  | X7  |               |
-|  6      | SSEL       | Y5  | X5  | Pin_EPD_CS    |
-|  7      | Busy       | X11 | Y11 | Pin_BUSY      |
-|  8      | Border Ctl | X12 | Y12 | Pin_BORDER    |
-|  9      | SCL        | X9  | Y9  | (I2C bus)     |
-| 10      | SDA        | X10 | Y10 |               |
-| 11      | CS Flash   | Y1  | X1  | Pin_FLASH_CS  |
-| 12      | Reset      | Y2  | X2  | Pin_RESET     |
-| 13      | Pwr        | Y3  | X3  | Pin_PANEL_ON  |
-| 14      | Discharge  | Y4  | X4  | Pin_DISCHARGE |
+A similar approach could be employed with the Adafriut.
+
+| display | signal     |  L  |  R  | Python name   | Adafriut  |
+|:-------:|:----------:|:---:|:---:|:-------------:|:---------:|
+|  1      | GND        | GND | GND |               | 20 black  |
+|  2      | 3V3        | 3V3 | 3V3 |               |  1 red    |
+|  3      | SCK        | Y6  | X6  | (SPI bus)     |  7 yellow |
+|  4      | MOSI       | Y8  | X8  |               | 15 blue   |
+|  5      | MISO       | Y7  | X7  |               | 14 purple |
+|  6      | SSEL       | Y5  | X5  | Pin_EPD_CS    | 19 brown  |
+|  7      | Busy       | X11 | Y11 | Pin_BUSY      |  8 orange |
+|  8      | Border Ctl | X12 | Y12 | Pin_BORDER    | 13 grey   |
+|  9      | SCL        | X9  | Y9  | (I2C bus)     | (no LM75) |
+| 10      | SDA        | X10 | Y10 |               | (both NC) |
+| 11      | CS Flash   | Y1  | X1  | Pin_FLASH_CS  | 18 orange |
+| 12      | Reset      | Y2  | X2  | Pin_RESET     | 10 black  |
+| 13      | Pwr        | Y3  | X3  | Pin_PANEL_ON  | 11 red    |
+| 14      | Discharge  | Y4  | X4  | Pin_DISCHARGE | 12 white  |
+
+The SPI bus is not designed for driving long wires. This driver uses it at upto 21MHz so keep them
+short!
+
+### Embedded Artists hardware
 
 Red stripe on cable is pin 1.
 
-For information this shows the E-paper 14 way 0.1inch pitch connector as viewed looking down
-on the pins with the keying cutout to the left:
+For information this shows the E-paper 14 way 0.1inch pitch connector as viewed looking down on the
+pins with the keying cutout to the left:
 
 |  L |  R |
 |:--:|:--:|
@@ -89,8 +111,12 @@ on the pins with the keying cutout to the left:
 | 11 | 12 |
 | 13 | 14 |
 
-The SPI bus is not designed for driving long wires. This driver uses it at upto 21MHz so keep
-them short!
+### Adafruit hardware
+
+Looking at the board oriented display side up and connector on the left. Pin 1 is the top left pin
+(the left column are all odd numbered pins) and pin 2 is immediately to its right (right hand
+column is all the even pins). There is also small 1 and 2 on the PCB silk screen above the socket
+and a 19 and 20 below the socket.
 
 # Getting started
 
@@ -116,10 +142,11 @@ with a.font('/sd/inconsolata'):
 To employ the driver it is only necessary to import the epaper module and to instantiate the
 ``Display`` class. The driver comprises the following modules:
  1. epaper.py The user interface to the display and flash memory.
- 2. epd.py Low level driver for the EPD (electrophoretic display).
- 3. flash.py Low level driver for the flash memory.
- 4. panel.py Pin definitions for the display.
- 5. pyfont.py Support for frozen bytecode fonts.
+ 2. epd.py Low level NORMAL mode driver for the EPD (electrophoretic display).
+ 3. epdpart.py Low level FAST mode driver for the EPD.
+ 4. flash.py Low level driver for the flash memory.
+ 5. panel.py Pin definitions for the display.
+ 6. pyfont.py Support for frozen bytecode fonts.
 
 Note that the flash drive will need to be formatted before first use: see the flash.py doc below.
 
@@ -162,10 +189,14 @@ patient. Or offer a patch :)
 
 ### Methods
 
-``Display()`` The constructor has the following arguments:
+``Display()`` The constructor has one positional argument:
  1. ``side`` This must be 'L' or 'R' depending on the side of the Pyboard in use. Default 'L'. This
  is based on the wiring notes above.
- 2. ``use_flash`` Mounts the flash drive as /fc for general use. Default False.
+It has the following keyword only arguments:
+ 2. ``mode`` epaper.NORMAL or epaper.FAST - default normal mode.
+ 3. ``model`` epaper.EMBEDDED_ARTISTS or epaper.ADAFRUIT. Default EA.
+ 4. ``use_flash`` Mounts the flash drive as /fc for general use. Default False. N/A in FAST mode.
+ 5. ``compensate_temp`` Applies to FAST mode only. See below.
 
 ``clear_screen()`` Clears the screen. Argument ``show`` Default True. This blanks the screen buffer
 and resets the text cursor. If ``show`` is set it also displays the result by calling the
@@ -420,6 +451,79 @@ code into firmware. Both are based on the fact that the bulk of the flash memory
 firmware images but is not accessible as part of the ``/flash`` filesystem. Modules can be frozen
 as .py files or compiled to bytecode and frozen in that form. The former method is currently
 required for code which employs Viper and Native decorators (such as epd.py and epaper.py).
+
+# FAST mode
+
+The graphics and text primitives operate identically in both modes: a buffer is updated without
+affecting the display. Then a ``Display`` method is called to update the display hardware; FAST
+mode offers two additional update methods.
+
+The mode is invoked by instantiating the Display object with ``mode=epaper.FAST``. In this mode the
+Display instance must be used within a context manager: this turns on the display electronics and
+ensures they are properly shut down. A consequence of this mode of operation is that the onboard
+Flash cannot be used while this context is active, so fonts must be stored elsewhere. The following
+additional Display methods are supported:
+
+``refresh`` Quickly updates the display additively: existing content will be retained but new
+content will be included (overwriting the old where they overlap). Currently this is imperfect with
+some ghosting evident.
+
+``exchange`` Like ``show`` but faster with no ghosting but a single screen flash.
+
+The ``Display`` constructor has an additional kwonly argument ``compensate_temp`` applicable to
+FAST mode. If set ``False`` it speeds redrawing at the possible expense of more ghosting.
+
+The following example illustrates FAST mode by means of a simple digital clock display - some
+ghosting is evident. Note the additional two spaces at the end of the text: if refreshing
+proportional fonts the physical length of the text string varies. This can lead to the rightmost
+pixels of the previous string failing to be overwritten unless monospaced fonts are used with the
+``monospaced`` context manager argument described above.
+
+```python
+import epaper, time
+a = epaper.Display('L', mode = epaper.FAST)
+with a:
+    a.clear_screen()
+    while True:
+        t =time.localtime()
+        with a.font('/sd/LiberationSerif-Regular45x44'):
+            a.locate(0,0)
+            a.puts('{:02d}.{:02d}.{:02d} '.format(t[3],t[4],t[5]))
+            a.refresh()
+        time.sleep(2)
+```
+
+The following illustrates the difference between ``refresh()`` and ``exchange()`` methods: the crde
+clock displays a second hand. Once per minute ``exchange()`` is used to remove artifacts.
+
+```python
+import epaper, time, math
+def polar(x, y, r, t):
+    return x + r * math.sin(math.pi * t /30), y - r * math.cos(math.pi * t /30)
+a = epaper.Display('L', mode = epaper.FAST)
+def draw(x, y, t, refresh):
+    with a.font('/sd/LiberationSerif-Regular45x44'):
+        a.locate(0,0)
+        a.puts('{:02d}.{:02d}.{:02d} '.format(t[3],t[4],t[5]))
+        if x:
+            a.line(100, 80, x, y, 3, False) # Erase old line
+        x, y = polar(100, 80, 40, t[5])
+        a.line(100, 80, x, y, 3)
+        if refresh:
+            a.refresh()
+        else:
+            a.exchange()
+        return x, y
+with a:
+    a.clear_screen()
+    x, y = 0, 0
+    while True:
+        t =time.localtime()
+        while time.localtime()[5] == t[5]:
+            pass
+        x, y = draw(x, y, t, time.localtime()[4] == t[4])
+```
+
 
 # Legalities
 
