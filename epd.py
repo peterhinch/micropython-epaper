@@ -1,7 +1,8 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
+# Ported from Arduino library (see README for web ref).
 # Peter Hinch
-# version 0.5
-# 29th Aug 2015 Improved power control support
+# version 0.8
+# 8th Mar 2016 Support for Adafruit module. This file supports normal mode.
 # 17th Aug 2015 __exit__() sequence adjusted to conform with datasheet rather than Arduino code
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch

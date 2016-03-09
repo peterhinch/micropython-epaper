@@ -6,24 +6,27 @@ This can also be bought from Mouser Electronics (a company with worldwide depots
 [MouserUK](http://www.mouser.co.uk/ProductDetail/Embedded-Artists/EA-LCD-009/?qs=sGAEpiMZZMt7dcPGmvnkBrNVf0ehHpp1LPMnQSPTe1M%3d).
 Also available in Europe from [Cool Components](http://www.coolcomponents.co.uk).
 
-Experimental support for the Adafruit [module](https://learn.adafruit.com/repaper-eink-development-board)
-is provided but limited to the 2.7 inch display module.
+Support for the Adafruit [module](https://learn.adafruit.com/repaper-eink-development-board)
+is provided but limited to the 2.7 inch display module. The onboard flash memory is not currently
+supported.
 
-This driver requires a Pyboard with firmware dated 28th July 2015 or later: an exception
+This driver requires a Pyboard with firmware dated 31st Jan 2016 or later: an exception
 will be raised on import if this condition is not met. If the facility to store fonts
 in Flash is employed a build with this capability must be used. As of 3rd March 2016
 this feature has not been incorporated into the release firmware build.
 
+The driver is untested with the Pyboard Lite but its limited RAM indicates that it may not be
+successful, especially in FAST mode or modes using the Embedded Artists (EA) flash memory.
+
 ### Introduction
 
 E-paper displays have high contrast and the ability to retain an image with the power
-disconnected. They also have very low power consumption when in use. The Embedded
-Artists model supports monochrome only, with no grey scale: pixels are either on or off.
-Further the display refresh takes time. The minimum update time defined by explicit delays
-is 1.6 seconds. With the current driver it takes 3.5s. This after some efforts at optimisation.
-A time closer to 1.6s might be achieved by writing key methods in Assembler but I have no
-plans to do this. It is considerably faster than the Arduino code and as fast as the best
-alternative board I have seen.
+disconnected. They also have very low power consumption when in use. These displays offer
+monochrome only, with no grey scale: pixels are either on or off. Further the display refresh takes
+time. In normal mode the minimum update time defined by explicit delays is 1.6 seconds. With the
+current driver it takes 3.5s. This after some efforts at optimisation. A time closer to 1.6s might
+be achieved by writing key methods in Assembler but I have no plans to do this. It is considerably
+faster than the Arduino code and as fast (in this mode) as the best alternative board I have seen.
 
 The Embedded Artists (EA) rev D display includes an LM75 temperature sensor and a 4MB flash memory
 chip. The driver provides access to the current temperature. The display driver does not use the
@@ -35,10 +38,10 @@ An issue with the EA module is that the Flash memory and the display module use 
 different, incompatible ways. The driver provides a means of arbitration between these devices
 discussed below. This is transparent to the user of the Display class.
 
-One application area for e-paper displays is in ultra low power applications. The Pyboard 1.1
-in standby mode consumes about 7uA. To avoid adding to this an external circuit is required
-to turn off the power to the display and any other peripherals before entering standby. A way
-of achieving this is presented [here](https://github.com/peterhinch/micropython-micropower.git).
+One application area for e-paper displays is in ultra low power applications. The Pyboard 1.1 in
+standby mode consumes about 7uA. To avoid adding to this an external circuit is required to turn
+off the power to the display and any other peripherals before entering standby. A way of achieving
+this is presented [here](https://github.com/peterhinch/micropython-micropower.git).
 
 This driver was ported from the RePaper reference designs [here](https://github.com/repaper/gratis.git).
 There are two reference drivers, one for resource constrained platforms (Arduino library) and 
@@ -50,18 +53,20 @@ screen transitions.
 "FAST" mode is intended for display of (fairly) realtime data. It uses more RAM and also precludes
 the concurrent use of the display and its onboard Flash memory. The following instructions largely
 refer to NORMAL mode, the differences implied by FAST mode are covered in a separate section below.
+In this mode the driver does cause the display to exhibit some "ghosting" where a trace of the
+prior image remains: work is in progress to attempt to reduce this.
 
 # The driver
 
-This enables the display of simple graphics and/or text in any font. The graphics
-capability may readily be extended by the user. This document includes instructions for
-converting system fonts to a form usable by the driver (using free - as in beer - software).
-Such fonts may be edited prior to conversion. If anyone can point me to an open source
-pure Python solution - command line would be fine - I would gladly evaluate it. My own
-attempts at writing one have not been entirely successful.
+This enables the display of simple graphics and/or text in any font. The graphics capability may
+readily be extended by the user. This document includes instructions for converting system fonts to
+a form usable by the driver (using free - as in beer - software). Such fonts may be edited prior to
+conversion. If anyone can point me to an open source pure Python solution - command line would be
+fine - I would gladly evaluate it. My own attempts at writing one have not been entirely
+successful.
 
-It also supports the display of XBM format graphics files, including the full screen
-sample images from Embedded Artists.
+It also supports the display of XBM format graphics files, including the full screen sample images
+from Embedded Artists.
 
 # Connecting the display
 
@@ -72,9 +77,9 @@ as follows. I fitted the Pyboard with socket headers and wired the display cable
 sides are symmetrical). I have labelled them L and R indicating the left and right sides
 of the board as seen with the USB connector at the top.
 
-A similar approach could be employed with the Adafriut.
+A similar approach can be employed with the Adafruit which is supplied with a cable.
 
-| display | signal     |  L  |  R  | Python name   | Adafriut  |
+| display | signal     |  L  |  R  | Python name   | Adafruit  |
 |:-------:|:----------:|:---:|:---:|:-------------:|:---------:|
 |  1      | GND        | GND | GND |               | 20 black  |
 |  2      | 3V3        | 3V3 | 3V3 |               |  1 red    |
@@ -91,8 +96,8 @@ A similar approach could be employed with the Adafriut.
 | 13      | Pwr        | Y3  | X3  | Pin_PANEL_ON  | 11 red    |
 | 14      | Discharge  | Y4  | X4  | Pin_DISCHARGE | 12 white  |
 
-The SPI bus is not designed for driving long wires. This driver uses it at upto 21MHz so keep them
-short!
+The SPI bus is not designed for driving long wires. This driver uses it at upto 10.5MHz so keep
+them short!
 
 ### Embedded Artists hardware
 
@@ -120,7 +125,8 @@ and a 19 and 20 below the socket.
 
 # Getting started
 
-Assuming the device is connected on the 'L' side simply cut and paste this at the REPL.
+Assuming the device is connected on the 'L' side simply cut and paste this at the REPL. Note that
+with all code samples it's best to issue <ctrl>D before pasting to reset the Pyboard.
 
 ```python
 import epaper
@@ -156,9 +162,9 @@ Note that the flash drive will need to be formatted before first use: see the fl
 usable by the driver.  
 ``cfonts_to_python.py`` Converts a "C" code file generated by GLCD Font Creator into a Python file
 which can be frozen as bytecode into a firmware build.  
-``LiberationSerif-Regular45x44`` Sample binary font files (Times Roman lookalike)  
-``inconsolata`` Monospaced 24 point terminal font  
-``aphrodite_2_7.xbm`` Sample full screen image files from Embedded Artists  
+``LiberationSerif-Regular45x44`` Sample binary font files (Times Roman lookalike).  
+``inconsolata`` Monospaced 24 point terminal font. I prefer Courier New on these displays.  
+``aphrodite_2_7.xbm`` Sample full screen image files from Embedded Artists.  
 ``cat_2_7.xbm``  
 ``ea_2_7.xbm``  
 ``saturn_2_7.xbm``  
@@ -174,8 +180,8 @@ display the result. The ``show()`` method is the only one to access the EPD modu
 ``clear_screen()`` calls ``show()``). Others affect the buffer alone.
 
 There is support for micropower operation where the system power consumption must be minimised
-for long term operation from a single cell. This uses external circuitry to shut down the power to
-the display before you issue ``pyb.stop()`` or ``pyb.standby``. See the appendix below.
+for long term battery operation. This uses external circuitry to shut down the power to the display
+before you issue ``pyb.stop()`` or ``pyb.standby``. See the appendix below.
 
 The coordinate system has its origin at the top left corner of the display, with integer
 X values from 0 to 263 and Y from 0 to 175 (inclusive).
@@ -497,7 +503,7 @@ The following illustrates the difference between ``refresh()`` and ``exchange()`
 clock displays a second hand. Once per minute ``exchange()`` is used to remove artifacts.
 
 ```python
-import epaper, time, math
+import epaper, time, math, pyb
 def polar(x, y, r, t):
     return x + r * math.sin(math.pi * t /30), y - r * math.cos(math.pi * t /30)
 a = epaper.Display('L', mode = epaper.FAST)
@@ -520,10 +526,19 @@ with a:
     while True:
         t =time.localtime()
         while time.localtime()[5] == t[5]:
-            pass
+            pyb.delay(100)
         x, y = draw(x, y, t, time.localtime()[4] == t[4])
 ```
 
+### For experimenters
+
+The removal of ghosting is supposed to be handled by the ``factored_stage_time`` property of the
+EPD instance. This is the time in ms that the driver will spend rewriting the data. Its default
+value, in the EA device, is about 1200ms dependent on temperature. A way to speed updates at
+possible increase in ghosting is to set the ``Display`` constructor argument ``compensate_temp`
+` to ``False``. This causes the default to be 630ms regardless of temperature.
+
+In the case of the Adafruit module compensation will be for 25C if ``compensate_temp`` is ``True``.
 
 # Legalities
 
@@ -534,13 +549,15 @@ for changes.
 
 # References
 
-This code is derived from that at [Embedded Artists](https://github.com/embeddedartists/gratis)
-with graphics code derived from [ARM mbed](https://developer.mbed.org/users/dreschpe/code/EaEpaper/)
+This code is derived from that at [Embedded Artists](https://github.com/embeddedartists/gratis).  
+Graphics code derived from [ARM mbed](https://developer.mbed.org/users/dreschpe/code/EaEpaper/).  
+[RePaper reference designs](https://github.com/repaper/gratis.git).  
+[Ideas on ultra low power Pyboard systems](https://github.com/peterhinch/micropython-micropower.git).
 
 Further sources of information:  
-[device data and interface timing](http://www.pervasivedisplays.com/products/27)  
-[COG interface timing](http://www.pervasivedisplays.com/_literature_220873/COG_Driver_Interface_Timing_for_small_size_G2_V231)  
-[Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf)  
-[RePaper](http://repaper.org/doc/cog_driving.html)
+[device data and interface timing](http://www.pervasivedisplays.com/products/27).  
+[COG interface timing](http://www.pervasivedisplays.com/_literature_220873/COG_Driver_Interface_Timing_for_small_size_G2_V231).  
+[Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf) (EA device only).  
+[RePaper](http://repaper.org/doc/cog_driving.html).
 
-Notes on the font file layout are available [here](https://github.com/peterhinch/micropython-samples/blob/master/font/README.md)
+Notes on the font file layout are available [here](https://github.com/peterhinch/micropython-samples/blob/master/font/README.md).

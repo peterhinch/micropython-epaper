@@ -1,6 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.5
+# version 0.8
+# 8th Mar 2016 Support for Adafruit module. This file implements fast mode.
 # 29th Aug 2015 Improved power control support
 # 17th Aug 2015 __exit__() sequence adjusted to conform with datasheet rather than Arduino code
 

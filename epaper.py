@@ -1,9 +1,9 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.7
+# version 0.8
+# 8 Mar 2016 Adafruit module and fast (partial) updates.
 # 2 Mar 2016 Power control support removed. Support for fonts as persistent byte code
-# 29th Jan 2016 Monospaced fonts supported too.
-# 23rd Sep 2015 Checks for out of date firmware on load
+# 29th Jan 2016 Monospaced fonts supported.
 
 # Copyright 2015 Peter Hinch
 #
@@ -22,13 +22,16 @@
 # Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
 
 import pyb, os, gc, pyfont
-LINES_PER_DISPLAY = const(176)
+LINES_PER_DISPLAY = const(176)  # 2.7 inch panel only!
 BYTES_PER_LINE = const(33)
 BITS_PER_LINE = const(264)
-NORMAL = const(0)
+
+NORMAL = const(0)               # mode arg
 FAST = const(1)
-EMBEDDED_ARTISTS = const(0)
+
+EMBEDDED_ARTISTS = const(0)     # model
 ADAFRUIT = const(1)
+
 gc.collect()
 frozen_fonts = True
 try:
@@ -46,7 +49,7 @@ def buildcheck(tupTarget):
     if fail:
         raise OSError('This driver requires a firmware build dated {:4d}-{:02d}-{:02d} or later'.format(*tupTarget))
 
-buildcheck((2015,7,28))
+buildcheck((2016,1,31))         # Ensure kwonly args supported ?
 
 NEWLINE = const(10)             # ord('\n')
 
