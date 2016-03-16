@@ -20,8 +20,7 @@
 # governing permissions and limitations under the License.
 
 import pyb, gc
-EMBEDDED_ARTISTS = const(0)
-ADAFRUIT = const(1)
+from panel import EMBEDDED_ARTISTS, getpins
 
 EPD_OK = const(0) # error codes
 EPD_UNSUPPORTED_COG = const(1)
@@ -70,10 +69,9 @@ class EPD(object):
     def __init__(self, intside, model):
         self.model = model
         gc.collect()
-        from panel import getpins
         self.image = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY)
         self.linebuf = bytearray(BYTES_PER_LINE * 2 + BYTES_PER_SCAN)
-        pins = getpins(intside)
+        pins = getpins(intside, model)
         self.Pin_PANEL_ON = pyb.Pin(pins['PANEL_ON'], mode = pyb.Pin.OUT_PP)
         self.Pin_BORDER = pyb.Pin(pins['BORDER'], mode = pyb.Pin.OUT_PP)
         self.Pin_DISCHARGE = pyb.Pin(pins['DISCHARGE'], mode = pyb.Pin.OUT_PP)
@@ -92,6 +90,8 @@ class EPD(object):
         self.spi_no = pins['SPI_BUS']
         if model == EMBEDDED_ARTISTS:
             self.lm75 = LM75(pins['I2C_BUS'])   # early error if not working
+        else:
+            self.adc = pyb.ADC(pins['TEMPERATURE'])
 
 # USER INTERFACE
 
@@ -110,7 +110,7 @@ class EPD(object):
         if self.model == EMBEDDED_ARTISTS:
             return self.lm75.temperature
         else:
-            return 25
+            return 202.5 - 0.1824 * self.adc.read()
 
 # END OF USER INTERFACE
 

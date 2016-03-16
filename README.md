@@ -1,4 +1,4 @@
-# micropython-epaper
+﻿# micropython-epaper
 
 A driver to enable the Pyboard to access a 2.7 inch e-paper display from
 [Embedded Artists](http://www.embeddedartists.com/products/displays/lcd_27_epaper.php)
@@ -70,36 +70,33 @@ from Embedded Artists.
 
 # Connecting the display
 
-The Embedded Artists display is supplied with a 14 way ribbon cable. The easiest way to connect
-it to the Pyboard is to cut this cable in half and wire one half of it (each half is identical)
-as follows. I fitted the Pyboard with socket headers and wired the display cable to a
-14 way pin header, enabling it to be plugged in to either side of the Pyboard (the two
-sides are symmetrical). I have labelled them L and R indicating the left and right sides
-of the board as seen with the USB connector at the top.
+### Embedded Artists hardware
 
-A similar approach can be employed with the Adafruit which is supplied with a cable.
+The display is supplied with a 14 way ribbon cable. The easiest way to connect it to the Pyboard is
+to cut this cable in half and wire one half of it (each half is identical) as follows. I fitted the
+Pyboard with socket headers and wired the display cable to a 14 way pin header, enabling it to be
+plugged in to either side of the Pyboard (the two sides are symmetrical). I have labelled them L
+and R indicating the left and right sides of the board as seen with the USB connector at the top.
 
-| display | signal     |  L  |  R  | Python name   | Adafruit  |
-|:-------:|:----------:|:---:|:---:|:-------------:|:---------:|
-|  1      | GND        | GND | GND |               | 20 black  |
-|  2      | 3V3        | 3V3 | 3V3 |               |  1 red    |
-|  3      | SCK        | Y6  | X6  | (SPI bus)     |  7 yellow |
-|  4      | MOSI       | Y8  | X8  |               | 15 blue   |
-|  5      | MISO       | Y7  | X7  |               | 14 purple |
-|  6      | SSEL       | Y5  | X5  | Pin_EPD_CS    | 19 brown  |
-|  7      | Busy       | X11 | Y11 | Pin_BUSY      |  8 orange |
-|  8      | Border Ctl | X12 | Y12 | Pin_BORDER    | 13 grey   |
-|  9      | SCL        | X9  | Y9  | (I2C bus)     | (no LM75) |
-| 10      | SDA        | X10 | Y10 |               | (both NC) |
-| 11      | CS Flash   | Y1  | X1  | Pin_FLASH_CS  | 18 orange |
-| 12      | Reset      | Y2  | X2  | Pin_RESET     | 10 black  |
-| 13      | Pwr        | Y3  | X3  | Pin_PANEL_ON  | 11 red    |
-| 14      | Discharge  | Y4  | X4  | Pin_DISCHARGE | 12 white  |
+| display | signal     |  L  |  R  | Python name   |
+|:-------:|:----------:|:---:|:---:|:-------------:|
+|  1      | GND        | GND | GND |               |
+|  2      | 3V3        | 3V3 | 3V3 |               |
+|  3      | SCK        | Y6  | X6  | (SPI bus)     |
+|  4      | MOSI       | Y8  | X8  |               |
+|  5      | MISO       | Y7  | X7  |               |
+|  6      | SSEL       | Y5  | X5  | Pin_EPD_CS    |
+|  7      | Busy       | X11 | Y11 | Pin_BUSY      |
+|  8      | Border Ctl | X12 | Y12 | Pin_BORDER    |
+|  9      | SCL        | X9  | Y9  | (I2C bus)     |
+| 10      | SDA        | X10 | Y10 |               |
+| 11      | CS Flash   | Y1  | X1  | Pin_FLASH_CS  |
+| 12      | Reset      | Y2  | X2  | Pin_RESET     |
+| 13      | Pwr        | Y3  | X3  | Pin_PANEL_ON  |
+| 14      | Discharge  | Y4  | X4  | Pin_DISCHARGE |
 
 The SPI bus is not designed for driving long wires. This driver uses it at upto 10.5MHz so keep
 them short!
-
-### Embedded Artists hardware
 
 Red stripe on cable is pin 1.
 
@@ -118,6 +115,25 @@ pins with the keying cutout to the left:
 
 ### Adafruit hardware
 
+The Adafruit module is supplied with a cable: colours below refer to this.
+
+| Display   | signal     |  L  |  R  | Python name   |
+|:---------:|:----------:|:---:|:---:|:-------------:|
+| 20 black  | GND        | GND | GND |               |
+|  1 red    | 3V3        | 3V3 | 3V3 |               |
+|  7 yellow | SCK        | Y6  | X6  | (SPI bus)     |
+| 15 blue   | MOSI       | Y8  | X8  |               |
+| 14 purple | MISO       | Y7  | X7  |               |
+| 19 brown  | SSEL       | Y5  | X5  | Pin_EPD_CS    |
+|  6 green  | Temp       | X11 | Y11 | Temperature   |
+| 13 grey   | Border Ctl | X12 | Y12 | Pin_BORDER    |
+|           | (n/c)      | X9  | Y9  |               |
+|  8 orange | Busy       | X10 | Y10 | Pin_BUSY      |
+| 18 orange | CS Flash   | Y1  | X1  | Pin_FLASH_CS  |
+| 10 black  | Reset      | Y2  | X2  | Pin_RESET     |
+| 11 red    | Pwr        | Y3  | X3  | Pin_PANEL_ON  |
+| 12 white  | Discharge  | Y4  | X4  | Pin_DISCHARGE |
+
 Looking at the board oriented display side up and connector on the left. Pin 1 is the top left pin
 (the left column are all odd numbered pins) and pin 2 is immediately to its right (right hand
 column is all the even pins). There is also small 1 and 2 on the PCB silk screen above the socket
@@ -126,7 +142,9 @@ and a 19 and 20 below the socket.
 # Getting started
 
 Assuming the device is connected on the 'L' side simply cut and paste this at the REPL. Note that
-with all code samples it's best to issue <ctrl>D before pasting to reset the Pyboard.
+with all code samples it's best to issue <ctrl>D before pasting to reset the Pyboard. Note that all
+the following code samples assume EA hardware: if you're using Adafruit add ``mode=epaper.ADAFRUIT``
+as a constructor argument.
 
 ```python
 import epaper
@@ -255,7 +273,8 @@ in this case the flash device is mounted automatically.
 
 ### Properties
 
-``temperature`` Returns the current temperature in degrees Celsius.
+``temperature`` Returns the current temperature in degrees Celsius.  
+``location`` Returns the x, y coordinates of the text cursor.
 
 ## Font class
 
@@ -476,8 +495,9 @@ some ghosting evident.
 
 ``exchange`` Like ``show`` but faster with no ghosting but a single screen flash.
 
-The ``Display`` constructor has an additional kwonly argument ``compensate_temp`` applicable to
-FAST mode. If set ``False`` it speeds redrawing at the possible expense of more ghosting.
+The ``Display`` constructor has an additional kwonly argument ``up_time`` applicable to
+FAST mode. If set it overrides the default temperature related value allowing the user to speed
+redrawing at the possible expense of more ghosting.
 
 The following example illustrates FAST mode by means of a simple digital clock display - some
 ghosting is evident. Note the additional two spaces at the end of the text: if refreshing
@@ -535,8 +555,8 @@ with a:
 The removal of ghosting is supposed to be handled by the ``factored_stage_time`` property of the
 EPD instance. This is the time in ms that the driver will spend rewriting the data. Its default
 value, in the EA device, is about 1200ms dependent on temperature. A way to speed updates at
-possible increase in ghosting is to set the ``Display`` constructor argument ``compensate_temp`
-` to ``False``. This causes the default to be 630ms regardless of temperature.
+possible increase in ghosting is to set the ``Display`` constructor argument ``up_time``
+to a value in ms: the value overrides the default regardless of temperature.
 
 In the case of the Adafruit module compensation will be for 25C if ``compensate_temp`` is ``True``.
 

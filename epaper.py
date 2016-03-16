@@ -21,16 +21,11 @@
 
 # Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
 
-import pyb, os, gc, pyfont
+import pyb, os, gc
+from panel import NORMAL, FAST, EMBEDDED_ARTISTS, ADAFRUIT
 LINES_PER_DISPLAY = const(176)  # 2.7 inch panel only!
 BYTES_PER_LINE = const(33)
 BITS_PER_LINE = const(264)
-
-NORMAL = const(0)               # mode arg
-FAST = const(1)
-
-EMBEDDED_ARTISTS = const(0)     # model
-ADAFRUIT = const(1)
 
 gc.collect()
 frozen_fonts = True
@@ -151,25 +146,25 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, side='L',*, mode=NORMAL, model=EMBEDDED_ARTISTS, use_flash=False, compensate_temp=True):
+    def __init__(self, side='L',*, mode=NORMAL, model=EMBEDDED_ARTISTS, use_flash=False, up_time = None):
         self.flash = None                       # Assume flash is unused
         self.in_context = False
         try:
-            self.intside = {'x':1, 'y':0, 'l':0, 'r':1}[side.lower()]
+            intside = {'l':0, 'r':1}[side.lower()]
         except (KeyError, AttributeError):
             raise ValueError("Side must be 'L' or 'R'")
         if model not in (EMBEDDED_ARTISTS, ADAFRUIT):
             raise ValueError('Unsupported model')
         if mode == FAST and use_flash:
             raise ValueError('Flash memory unavailable in fast mode')
-        if mode == NORMAL and not compensate_temp:
-            raise ValueError('In normal mode compensate_temp must be True')
+        if mode == NORMAL and time is not None:
+            raise ValueError('Cannot set up_time in normal mode')
         if mode == NORMAL:
             from epd import EPD
-            self.epd = EPD(self.intside, model)
+            self.epd = EPD(intside, model)
         elif mode == FAST:
             from epdpart import EPD
-            self.epd = EPD(self.intside, model, compensate_temp)
+            self.epd = EPD(intside, model, up_time)
         else:
             raise ValueError('Unsupported mode {}'.format(mode))
         self.mode = mode
@@ -180,7 +175,7 @@ class Display(object):
         self.mounted = False                    # umountflash() not to sync
         if use_flash:
             from flash import FlashClass
-            self.flash = FlashClass(self.intside)
+            self.flash = FlashClass(intside)
             self.umountflash()                  # In case mounted by prior tests.
             self.mountflash()
         gc.collect()
@@ -252,6 +247,10 @@ class Display(object):
     @property
     def temperature(self):                      # return temperature as integer in Celsius
         return self.epd.temperature
+
+    @property
+    def location(self):
+        return self.char_x, self.char_y
 
     @micropython.native
     def setpixel(self, x, y, black):            # 41uS. Clips to borders. x, y must be integer
