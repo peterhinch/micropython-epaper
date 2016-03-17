@@ -485,10 +485,10 @@ affecting the display. Then a ``Display`` method is called to update the display
 mode offers an additional update method.
 
 The mode is invoked by instantiating the Display object with ``mode=epaper.FAST``. In this mode the
-Display instance must be used within a context manager: this turns on the display electronics and
+``Display`` instance must be used within a context manager: this turns on the display electronics and
 ensures they are properly shut down. A consequence of this mode of operation is that the onboard
 Flash cannot be used while this context is active, so fonts must be stored elsewhere. The following
-additional Display method is supported:
+additional ``Display`` method is supported:
 
 ``refresh`` Quickly updates the display additively: existing content will be retained but new
 content will be included (overwriting the old where they overlap). Currently this is imperfect with
@@ -519,7 +519,7 @@ with a:
 ```
 
 This example (``clock.py``) has digital and analog displays and better illustrates the issue of
-ghosting.
+ghosting. It also demonstrates a way to move an object by erasing its previous location.
 
 ```python
 import epaper, time, math, pyb
