@@ -36,7 +36,8 @@ the ``use_flash`` Display constructor argument. Setting this False will save ove
 
 An issue with the EA module is that the Flash memory and the display module use the SPI bus in
 different, incompatible ways. The driver provides a means of arbitration between these devices
-discussed below. This is transparent to the user of the Display class.
+discussed below. This is transparent to the user of the Display class. A consequence of this is
+that the SPI bus used by the display should not be shared with other devices.
 
 One application area for e-paper displays is in ultra low power applications. The Pyboard 1.1 in
 standby mode consumes about 7uA. To avoid adding to this an external circuit is required to turn
@@ -481,23 +482,21 @@ required for code which employs Viper and Native decorators (such as epd.py and 
 
 The graphics and text primitives operate identically in both modes: a buffer is updated without
 affecting the display. Then a ``Display`` method is called to update the display hardware; FAST
-mode offers two additional update methods.
+mode offers an additional update method.
 
 The mode is invoked by instantiating the Display object with ``mode=epaper.FAST``. In this mode the
 Display instance must be used within a context manager: this turns on the display electronics and
 ensures they are properly shut down. A consequence of this mode of operation is that the onboard
 Flash cannot be used while this context is active, so fonts must be stored elsewhere. The following
-additional Display methods are supported:
+additional Display method is supported:
 
 ``refresh`` Quickly updates the display additively: existing content will be retained but new
 content will be included (overwriting the old where they overlap). Currently this is imperfect with
 some ghosting evident.
 
-``exchange`` Like ``show`` but faster with no ghosting but a single screen flash.
-
 The ``Display`` constructor has an additional kwonly argument ``up_time`` applicable to
 FAST mode. If set it overrides the default temperature related value allowing the user to speed
-redrawing at the possible expense of more ghosting.
+redrawing at the possible expense of more ghosting. Its value is in ms.
 
 The following example illustrates FAST mode by means of a simple digital clock display - some
 ghosting is evident. Note the additional two spaces at the end of the text: if refreshing
@@ -519,35 +518,45 @@ with a:
         time.sleep(2)
 ```
 
-The following illustrates the difference between ``refresh()`` and ``exchange()`` methods: the crude
-clock displays a second hand. Once per minute ``exchange()`` is used to remove artifacts.
+This example (``clock.py``) has digital and analog displays and better illustrates the issue of
+ghosting.
 
 ```python
 import epaper, time, math, pyb
-def polar(x, y, r, t):
-    return x + r * math.sin(math.pi * t /30), y - r * math.cos(math.pi * t /30)
 a = epaper.Display('L', mode = epaper.FAST)
-def draw(x, y, t, refresh):
-    with a.font('/sd/LiberationSerif-Regular45x44'):
-        a.locate(0,0)
-        a.puts('{:02d}.{:02d}.{:02d} '.format(t[3],t[4],t[5]))
-        if x:
-            a.line(100, 80, x, y, 3, False) # Erase old line
-        x, y = polar(100, 80, 40, t[5])
-        a.line(100, 80, x, y, 3)
-        if refresh:
-            a.refresh()
-        else:
-            a.exchange()
-        return x, y
+
+ # closure creates line which can be rotated, erasing old line
+def polar_line(origin, length, width):
+    x_end, y_end = None, None
+    x_origin, y_origin = origin
+    def draw(radians):
+        nonlocal x_end, y_end, x_origin, y_origin
+        if x_end is not None:
+            a.line(x_origin, y_origin, x_end, y_end, width, False) # erase
+        x_end = x_origin + length * math.sin(radians)
+        y_end = y_origin - length * math.cos(radians)
+        a.line(x_origin, y_origin, x_end, y_end, width, True)
+    return draw
+
+origin = 100, 100
+secs = polar_line(origin, 50, 1)
+mins = polar_line(origin, 50, 2)
+hours = polar_line(origin, 30, 4)
+
 with a:
     a.clear_screen()
-    x, y = 0, 0
     while True:
-        t =time.localtime()
-        while time.localtime()[5] == t[5]:
-            pyb.delay(100)
-        x, y = draw(x, y, t, time.localtime()[4] == t[4])
+        a.circle(origin[0], origin[1], 55, 1)
+        t = time.localtime()
+        h, m, s = t[3:6]
+        hh = h + m /60
+        with a.font('/sd/LiberationSerif-Regular45x44'):
+            a.locate(0,0)
+            a.puts('{:02d}.{:02d}.{:02d} '.format(h, m, s)) # trailing space allows for varying character width
+            secs(2 * math.pi * s/60)
+            mins(2 * math.pi * m/60)
+            hours(2 * math.pi * (h + m/60)/12)
+            a.refresh()
 ```
 
 ### For experimenters
@@ -557,6 +566,12 @@ EPD instance. This is the time in ms that the driver will spend rewriting the da
 value is about 1200ms dependent on temperature. A way to speed updates at possible increase in
 ghosting is to set the ``Display`` constructor argument ``up_time`` to a value in ms: the value
 overrides the default regardless of temperature.
+
+Fast mode also has a method ``exchange()``. This alternative to ``show()`` is under development.
+
+The ``refresh`` method has a boolean argument ``fast``, defaulting ``True``. Setting this ``False``
+invokes a slower method advocated by some developers. Again, under investigation; I'm unimpressed
+so far.
 
 # Legalities
 
