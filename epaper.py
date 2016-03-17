@@ -224,7 +224,7 @@ class Display(object):
             self.epd.showdata()
         self.mountflash()
 
-    def clear_screen(self, show = True):
+    def clear_screen(self, show=True):
         self.checkcm()
         self.locate(0, 0)                       # Reset text cursor
         self.epd.clear_data()
@@ -234,10 +234,10 @@ class Display(object):
             else:
                 self.epd.EPD_clear()
 
-    def refresh(self):                          # Fast mode only functions
+    def refresh(self, fast =True):              # Fast mode only functions
         checkstate(self.mode == FAST, 'refresh() invalid in normal mode')
         self.checkcm()
-        self.epd.refresh()
+        self.epd.refresh(fast)
 
     def exchange(self):
         checkstate(self.mode == FAST, 'exchange() invalid in normal mode')

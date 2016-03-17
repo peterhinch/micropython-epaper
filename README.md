@@ -519,7 +519,7 @@ with a:
         time.sleep(2)
 ```
 
-The following illustrates the difference between ``refresh()`` and ``exchange()`` methods: the crde
+The following illustrates the difference between ``refresh()`` and ``exchange()`` methods: the crude
 clock displays a second hand. Once per minute ``exchange()`` is used to remove artifacts.
 
 ```python
@@ -554,11 +554,9 @@ with a:
 
 The removal of ghosting is supposed to be handled by the ``factored_stage_time`` property of the
 EPD instance. This is the time in ms that the driver will spend rewriting the data. Its default
-value, in the EA device, is about 1200ms dependent on temperature. A way to speed updates at
-possible increase in ghosting is to set the ``Display`` constructor argument ``up_time``
-to a value in ms: the value overrides the default regardless of temperature.
-
-In the case of the Adafruit module compensation will be for 25C if ``compensate_temp`` is ``True``.
+value is about 1200ms dependent on temperature. A way to speed updates at possible increase in
+ghosting is to set the ``Display`` constructor argument ``up_time`` to a value in ms: the value
+overrides the default regardless of temperature.
 
 # Legalities
 

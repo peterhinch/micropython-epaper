@@ -1,6 +1,7 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.8
+# version 0.81
+# 16 Mar 2016 Assembler to increase iteration count and speed: reduce ghosting
 # 8th Mar 2016 Support for Adafruit module. This file implements fast mode.
 # 29th Aug 2015 Improved power control support
 # 17th Aug 2015 __exit__() sequence adjusted to conform with datasheet rather than Arduino code
@@ -19,7 +20,7 @@
 # express or implied.  See the License for the specific language
 # governing permissions and limitations under the License.
 
-import pyb, gc, stm # TEST
+import pyb, gc
 from array import array
 from uctypes import addressof
 from panel import EMBEDDED_ARTISTS, getpins
@@ -99,14 +100,12 @@ class EPD(object):
         self.compensate_temp = True if up_time is None else False
         self.verbose = False
         gc.collect()
-        self.image_0 = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY) # 5808
+        self.image_0 = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY) # 5808. Contents 0.
         self.image_1 = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY) # 5808
         self.asm_data = array('i', [0, 0, 0, 0])
         self.image = self.image_0
         self.image_old = self.image_1
         self.line_buffer = bytearray(111) # total 11727 bytes!
-        for x in range(len(self.image_old)):
-            self.image_old[x] = 0
         pins = getpins(intside, model)
         self.Pin_PANEL_ON = pyb.Pin(pins['PANEL_ON'], mode = pyb.Pin.OUT_PP)
         self.Pin_BORDER = pyb.Pin(pins['BORDER'], mode = pyb.Pin.OUT_PP)
@@ -287,7 +286,7 @@ class EPD(object):
 
 # USER INTERFACE
 # clear_screen() calls clear_data() and, if show, EPD_clear()
-# Clear screen, show image, called from show()
+# showdata() called from show()
     def showdata(self):
         self.EPD_clear()
         self.EPD_image_0()
@@ -296,22 +295,20 @@ class EPD(object):
         for x in range(len(self.image)):
             self.image[x] = 0
 
-# EPD_partial_image() - fast update of current image
-# See modified code at https://github.com/tvoverbeek/gratis/blob/master/PlatformWithOS/driver-common/V231_G2/epd.c
-    def refresh(self):
-        self.use_old = True
-#        self.update_old()
-#        self.frame_data_repeat(EPD_COMPENSATE)
-#        self.frame_data_repeat(EPD_WHITE)
-#        self.update_old()
-#        self.frame_data_repeat(EPD_INVERSE)
-#        self.frame_data_repeat(EPD_NORMAL)
-        self.frame_data_repeat(EPD_NORMAL)
-
-
-#        self.frame_data_repeat(EPD_NORMAL)      # This is where the time goes
-        for x in range(len(self.image)):
-            self.image_old[x] = self.image[x]   # this loop: 77ms out of 1.4s
+# EPD_partial_image() - fast update of current image. There are two schools of thought on this
+# https://github.com/repaper/gratis/issues/19
+# modified code at https://github.com/tvoverbeek/gratis/blob/master/PlatformWithOS/driver-common/V231_G2/epd.c
+    def refresh(self, fast):
+        if not fast:
+            self.update_old()
+            self.frame_data_repeat(EPD_COMPENSATE, use_old = True)
+            self.frame_data_repeat(EPD_WHITE, use_old = True)
+            self.update_old()
+            self.frame_data_repeat(EPD_INVERSE, use_old = True)
+            self.frame_data_repeat(EPD_NORMAL, use_old = True)
+        self.frame_data_repeat(EPD_NORMAL, use_old = True)
+        mv = memoryview(self.image_old)
+        mv[:] = self.image
 
     def exchange(self):
         self.EPD_image()
@@ -326,52 +323,41 @@ class EPD(object):
 # END OF USER INTERFACE
 
 # self.use_old False is equivalent to passing NULL in old image
-# update_old() determines which buffer to use TODO check how stage data ets to frame_fixed_repeat **********************
-
-# clear display (anything -> white) called from clear_screen() *** works ***
+# update_old() determines which buffer to use
+# clear display (anything -> white) called from clear_screen(), which handles clearing data
     def EPD_clear(self):
         self.frame_fixed_repeat(0xff, EPD_COMPENSATE)
         self.frame_fixed_repeat(0xff, EPD_WHITE)
         self.frame_fixed_repeat(0xaa, EPD_INVERSE)
         self.frame_fixed_repeat(0xaa, EPD_NORMAL)
-#        self.zero() don't alter data
-#        self.update_old()
-#        self.zero()
 
-# assuming a clear (white) screen output an image called from show() *** works ***
+# assuming a clear (white) screen output an image called from show()
     def EPD_image_0(self):
         self.frame_fixed_repeat(0xaa, EPD_COMPENSATE)
         self.frame_fixed_repeat(0xaa, EPD_WHITE)
-        self.use_old = False
-        self.frame_data_repeat(EPD_INVERSE)
-        self.frame_data_repeat(EPD_NORMAL)
+        self.frame_data_repeat(EPD_INVERSE, use_old = False)
+        self.frame_data_repeat(EPD_NORMAL, use_old = False)
         self.update_old()
-        self.zero()
+        zero(self.image, len(self.image))
 
 # change from old image to new image called from exchange()
     def EPD_image(self):
-        self.use_old = False
-        self.frame_data_repeat(EPD_COMPENSATE)
-        self.frame_data_repeat(EPD_WHITE)
         self.update_old()
-        self.frame_data_repeat(EPD_INVERSE)
-        self.frame_data_repeat(EPD_NORMAL)
-        self.zero()
+        self.frame_data_repeat(EPD_COMPENSATE, use_old = False)
+        self.frame_data_repeat(EPD_WHITE, use_old = False)
+        self.update_old()
+        self.frame_data_repeat(EPD_INVERSE, use_old = False)
+        self.frame_data_repeat(EPD_NORMAL, use_old = False)
+        zero(self.image, len(self.image))
 
     def update_old(self):
         i = self.image_old
         self.image_old = self.image
         self.image = i
 
-    def zero(self):
-        im = memoryview(self.image) # marginal speedup
-        length = len(im)
-        for x in range(length):
-            im[x] = 0
-
-    def frame_data_repeat(self, stage):
+    def frame_data_repeat(self, stage, use_old):
         self.asm_data[0] = addressof(self.image)
-        self.asm_data[1] = addressof(self.image_old)
+        self.asm_data[1] = addressof(self.image_old) if use_old else 0
         start = pyb.millis()
         count = 0
         while True:
@@ -408,70 +394,12 @@ class EPD(object):
     def _dummy_line(self):
         self.one_line_fixed(0x7fff, 0, EPD_NORMAL)
 
-# pixels on display are numbered from 1 so even is actually bits 1,3,5,...
-    @micropython.viper
-    def even_pixels_old(self, offset: int, data_offset: int, stage: int) -> int:
-        p = ptr8(self.line_buffer)
-        data = ptr8(self.image)
-        mask = ptr8(self.image_old)
-        for b in range(0, BYTES_PER_LINE): 
-            pixels = data[b + data_offset] & 0xaa
-            pixel_mask = 0xff
-            if self.use_old:
-                pixel_mask = (mask[b + data_offset] ^ pixels) & 0xaa
-                pixel_mask |= pixel_mask >> 1
-
-            if stage == EPD_COMPENSATE:         # B -> W, W -> B (Current Image)
-                pixels = 0xaa | ((pixels ^ 0xaa) >> 1)
-            elif stage == EPD_WHITE:            # B -> N, W -> W (Current Image)
-                pixels = 0x55 + ((pixels ^ 0xaa) >> 1)
-            elif stage == EPD_INVERSE:          # B -> N, W -> B (New Image)
-                pixels = 0x55 | (pixels ^ 0xaa)
-            elif stage == EPD_NORMAL:           # B -> B, W -> W (New Image)
-                pixels = 0xaa | (pixels >> 1)
-
-            p[offset] = int(setpixels(pixels, pixel_mask))
-#            pixels = (pixels & pixel_mask) | ((pixel_mask ^ 0xff) & 0x55)
-#            p1 = (pixels >> 6) & 0x03
-#            p2 = (pixels >> 4) & 0x03
-#            p3 = (pixels >> 2) & 0x03
-#            p4 = pixels & 0x03
-#            pixels = p1 | (p2 << 2) | (p3 << 4) | (p4 << 6)
-#            p[offset] = pixels
-            offset += 1
-        return offset
-
     @micropython.viper
     def even_pixels_fixed(self, offset: int, fixed_value: int) -> int:
         p = ptr8(self.line_buffer)
         for b in range(0, BYTES_PER_LINE): 
             p[offset] = fixed_value
             offset +=1
-        return offset
-
-# pixels on display are numbered from 1 so odd is actually bits 0,2,4,...
-    @micropython.viper
-    def odd_pixels_old(self, offset: int, data_offset: int, stage: int) -> int:
-        p = ptr8(self.line_buffer)
-        data = ptr8(self.image)
-        mask = ptr8(self.image_old)
-        for b in range(BYTES_PER_LINE, 0, -1):
-            pixels = data[b - 1 + data_offset] & 0x55
-            pixel_mask = 0xff
-            if self.use_old:
-                pixel_mask = (mask[b - 1 + data_offset] ^ pixels) & 0x55
-                pixel_mask |= pixel_mask << 1
-            if stage == EPD_COMPENSATE:         # B -> W, W -> B (Current Image)
-                pixels = 0xaa | (pixels ^ 0x55)
-            elif stage == EPD_WHITE:            # B -> N, W -> W (Current Image)
-                pixels = 0x55 + (pixels ^ 0x55)
-            elif stage == EPD_INVERSE:          # B -> N, W -> B (New Image)
-                pixels = 0x55 | ((pixels ^ 0x55) << 1)
-            elif stage == EPD_NORMAL:           # B -> B, W -> W (New Image)
-                pixels = 0xaa | pixels
-            pixels = (pixels & pixel_mask) | ((pixel_mask ^ 0xff) & 0x55)
-            p[offset] = pixels
-            offset += 1
         return offset
 
     @micropython.viper
@@ -487,19 +415,17 @@ class EPD(object):
     def one_line_data(self, line, stage):
         mv_linebuf = memoryview(self.line_buffer)
         self.asm_data[2] = addressof(mv_linebuf)
-        self.asm_data[3] = stage | 8 if self.use_old else stage
+        self.asm_data[3] = stage
         spi_send_byte = self.spi.send           # send data
         self._SPI_send(b'\x70\x0a')
         self.Pin_EPD_CS.low()                   # CS low until end of line
         spi_send_byte(b'\x72\x00')              # data bytes
-#        self.odd_pixels_old(0, line * BYTES_PER_LINE, stage) #note data and mask are offset by line, line buffer offset
         odd_pixels(self.asm_data, 0, line * BYTES_PER_LINE)
         offset = BYTES_PER_LINE
         offset = scan(self.line_buffer, line, offset)
         even_pixels(self.asm_data, offset, line * BYTES_PER_LINE)
         offset += BYTES_PER_LINE
 
-##        offset = self.even_pixels_old(offset, line * BYTES_PER_LINE, stage)
         spi_send_byte(mv_linebuf[:offset])      # send the accumulated line buffer
         self.Pin_EPD_CS.high()
         self._SPI_send(b'\x70\x02\x72\x07')     # output data to panel
@@ -537,37 +463,38 @@ class EPD(object):
         self.Pin_EPD_CS.high()
         return result
 
-
-
-
-#        for b in range(BYTES_PER_SCAN, 0, -1):  # scan line
-#            if line >> 2 == b - 1: 
-#                mv_linebuf[offset] = 0x03 << (2 * (line & 0x03))
-#            else:
-#                mv_linebuf[offset] = 0x00
-#            offset += 1
+@micropython.asm_thumb
+def zero(r0, r1):
+    mov(r2, 0)
+    label(LOOP)
+    strb(r2, [r0, 0])
+    add(r0, 1)
+    sub(r1, 1)
+    bne(LOOP)
 
 @micropython.asm_thumb
-def even_pixels(r0, r1, r2): # array, offset, data_offset, stage
-    ldr(r3, [r0, 12])
+def even_pixels(r0, r1, r2): # array, offset, data_offset
+    ldr(r3, [r0, 12]) # stage
     ldr(r4, [r0, 0])
     add(r4, r4, r2) # r4 = *data
     ldr(r5, [r0, 4])
+    cmp(r5, 0)
+    it(ne)
     add(r5, r5, r2) # r5 = *mask
     ldr(r2, [r0, 8])
     add(r2, r2, r1) # r2 = *p
     mov(r6, 0) # r6 = b
     label(LOOP)
-    push({r6, r3})
+    push({r6})
     mov(r0, r4)
     add(r0, r0, r6)
     ldr(r1, [r0, 0]) # r1 = data[b + data_offset]
     mov(r0, 0xaa)
     and_(r1, r0) # r1 = pixels = data[b + data_offset] & 0xaa
     mov(r7, 0xff) # r7 = pixel_mask
-    cmp(r3, 4) # Check use_old
-    blt(SKIP)
-    mov(r0, r5) # EXECUTING
+    cmp(r5, 0) # Check mask
+    beq(SKIP)
+    mov(r0, r5)
     add(r0, r0, r6)
     ldr(r7, [r0, 0]) # r7 = mask[b + data_offset]
     eor(r7, r1)
@@ -578,9 +505,8 @@ def even_pixels(r0, r1, r2): # array, offset, data_offset, stage
     lsr(r0, r6)
     orr(r7, r0) # r7 = pixel_mask |= pixel_mask >> 1
     label(SKIP)
-    mov(r0, 3)
-    and_(r3, r0) # strip use_old bit: r3 = stage
-    bne(LABEL1) # not EPD_COMPENSATE
+    cmp(r3, EPD_COMPENSATE) # r3 = stage
+    bne(LABEL1)
     mov(r0, 0xaa)
     eor(r0, r1) # r0 = pixels ^ 0xaa
     mov(r6, 1)
@@ -609,7 +535,7 @@ def even_pixels(r0, r1, r2): # array, offset, data_offset, stage
     label(LABEL3)
     cmp(r3, EPD_NORMAL)
     bne(LABEL4)
-    mov(r0, r1) # EXECUTING
+    mov(r0, r1)
     mov(r6, 1)
     lsr(r0, r6)
     mov(r6, 0xaa)
@@ -641,7 +567,7 @@ def even_pixels(r0, r1, r2): # array, offset, data_offset, stage
                 # r0 = pixels
     strb(r0, [r2, 0]) # *p = pixels
     add(r2, 1) # p++
-    pop({r6, r3}) # b, loop counter
+    pop({r6}) # b, loop counter
     add(r6, 1)
     cmp(r6, BYTES_PER_LINE)
     blt(LOOP)
@@ -653,12 +579,14 @@ def odd_pixels(r0, r1, r2): # array, offset, data_offset, stage
     ldr(r4, [r0, 0])
     add(r4, r4, r2) # r4 = *data
     ldr(r5, [r0, 4])
+    cmp(r5, 0)
+    it(ne)
     add(r5, r5, r2) # r5 = *mask
     ldr(r2, [r0, 8])
     add(r2, r2, r1) # r2 = *p
     mov(r6, BYTES_PER_LINE) # r6 = b
     label(LOOP)
-    push({r6, r3})
+    push({r6})
     mov(r0, r4)
     add(r0, r0, r6)
     sub(r0, 1)
@@ -666,8 +594,8 @@ def odd_pixels(r0, r1, r2): # array, offset, data_offset, stage
     mov(r0, 0x55)
     and_(r1, r0) # r1 = pixels = data[b -1 + data_offset] & 0x55
     mov(r7, 0xff) # r7 = pixel_mask
-    cmp(r3, 4) # Check use_old
-    blt(SKIP)
+    cmp(r5, 0) # Check mask
+    beq(SKIP)
     mov(r0, r5)
     add(r0, r0, r6)
     sub(r0, 1)
@@ -680,9 +608,8 @@ def odd_pixels(r0, r1, r2): # array, offset, data_offset, stage
     lsl(r0, r6)
     orr(r7, r0) # r7 = pixel_mask |= pixel_mask << 1
     label(SKIP)
-    mov(r0, 3)
-    and_(r3, r0) # strip use_old bit: r3 = stage
-    bne(LABEL1) # not EPD_COMPENSATE
+    cmp(r3, EPD_COMPENSATE) # r3 = stage
+    bne(LABEL1)
     mov(r0, 0x55)
     eor(r0, r1) # r0 = pixels ^ 0x55
     mov(r6, 0xaa)
@@ -728,30 +655,9 @@ def odd_pixels(r0, r1, r2): # array, offset, data_offset, stage
                 # r0 = pixels
     strb(r0, [r2, 0]) # *p = pixels
     add(r2, 1) # p++
-    pop({r6, r3}) # b, loop counter
+    pop({r6}) # b, loop counter
     sub(r6, 1)
     bne(LOOP)
-
-@micropython.asm_thumb
-def setpixels(r0, r1): # pixels, mask
-    push({r2, r3})
-    mvn(r2, r1)
-    mov(r3, 0x55)
-    and_(r3, r2) # r3 = (mask ^0xff) & 0x55
-    and_(r0, r1)
-    orr(r0, r3) # r0 = (r0 & mask) | (mask ^0xff) & 0x55
-    rbit(r0, r0)
-    mov(r1, 23)
-    mov(r2, r0)
-    lsr(r2, r1) # r2 = pixels >> 23
-    mov(r1, 25)
-    lsr(r0, r1) # r0 = pixels >> 25
-    mov(r1, 0xaa)
-    and_(r2, r1) # r2 = (pixels >> 23) & 0xaa
-    mov(r1, 0x55)
-    and_(r0, r1) # r0 = (pixels >> 25) & 0x55
-    orr(r0, r2)
-    pop({r2, r3})
 
 @micropython.asm_thumb
 def scan(r0, r1, r2):
