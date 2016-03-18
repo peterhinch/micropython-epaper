@@ -466,7 +466,7 @@ A major application for e-paper displays is in devices intended to run for long 
 battery power. To achieve this, external hardware can be used to ensure power to the display and
 other peripherals is removed when the Pyboard is in standby. On waking the program turns on power
 to the peripherals, turning it off before going back into standby. For the lowest possible
-consumption an SD card should not be installed on the Pyboard as this consumespower at all times.
+consumption an SD card should not be installed on the Pyboard as this consumes power at all times.
 Fonts and images should be stored in the Pyboard flash memory or on an external device whose power
 is switched (such as the flash memory on a power-switched display).
 
@@ -477,7 +477,7 @@ Note that there are two ways of conserving space on the Pyboard flash drive by i
 code into firmware. Both are based on the fact that the bulk of the flash memory is accessible to
 firmware images but is not accessible as part of the ``/flash`` filesystem. Modules can be frozen
 as .py files or compiled to bytecode and built into the firmware as persistent bytecode. The former
-method is currently required for code which employs Viper or Native decorators or Assembler. This
+method is currently required for code which employs Viper, Native or Assembler decorators. This
 includes epd.py, epdpart.py and epaper.py.
 
 # FAST mode
@@ -554,13 +554,13 @@ hours = polar_line(origin, 30, 4)
 
 with a:
     a.clear_screen()
+    a.circle(origin[0], origin[1], 55, 1)
     while True:
-        a.circle(origin[0], origin[1], 55, 1)
         t = time.localtime()
         h, m, s = t[3:6]
         hh = h + m /60
         with a.font('/sd/LiberationSerif-Regular45x44'):
-            a.locate(0,0)
+            a.locate(0, 0)
             a.puts('{:02d}.{:02d}.{:02d} '.format(h, m, s)) # trailing space allows for varying character width
         secs(2 * math.pi * s/60)
         mins(2 * math.pi * m/60)
