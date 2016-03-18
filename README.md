@@ -570,15 +570,9 @@ with a:
 
 ### For experimenters
 
-The removal of ghosting is supposed to be handled by the ``factored_stage_time`` property of the
-EPD instance. This is the time in ms that the driver will spend rewriting the data. Its default
-value is about 1200ms dependent on temperature. A way to speed updates at possible increase in
-ghosting is to set the ``Display`` constructor argument ``up_time`` to a value in ms: the value
-overrides the default regardless of temperature.
-
 The ``refresh`` method has a boolean argument ``fast``, defaulting ``True``. Setting this ``False``
-invokes a slower method advocated by some developers. Again, under investigation; I'm unimpressed
-so far.
+invokes a slower method claimed by some developers to reduce ghosting. Under investigation; I'm
+underwhelmed so far. The code (epdpart.py) has web references in the comments.
 
 # Legalities
 
