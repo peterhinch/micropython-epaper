@@ -24,7 +24,7 @@ FAST = 1
 EMBEDDED_ARTISTS = 0     # model
 ADAFRUIT = 1
 
-def getpins(intside, model):
+def getpins(intside, model=0):
     if intside == 0:
         result = {'PANEL_ON': 'Y3', 'BORDER': 'X12', 'DISCHARGE': 'Y4',
         'RESET': 'Y2', 'BUSY':   'X11', 'TEMPERATURE': 'X11', 'EPD_CS': 'Y5',
