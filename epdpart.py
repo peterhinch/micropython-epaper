@@ -1,9 +1,8 @@
 # epd.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Peter Hinch
-# version 0.81
-# 16 Mar 2016 Assembler to increase iteration count and speed: reduce ghosting
+# version 0.85
+# 18 Mar 2016 Assembler to increase iteration count and speed: reduce ghosting
 # 8th Mar 2016 Support for Adafruit module. This file implements fast mode.
-# 29th Aug 2015 Improved power control support
 # 17th Aug 2015 __exit__() sequence adjusted to conform with datasheet rather than Arduino code
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
@@ -34,6 +33,7 @@ LINES_PER_DISPLAY = const(176)
 BYTES_PER_LINE = const(33)
 BYTES_PER_SCAN = const(44)
 BITS_PER_LINE = const(264)
+BUFFER_SIZE = const(5808) # BYTES_PER_LINE * LINES_PER_DISPLAY
 
 BORDER_BYTE_BLACK = const(0xff)
 BORDER_BYTE_WHITE = const(0xaa)
@@ -100,8 +100,8 @@ class EPD(object):
         self.compensate_temp = True if up_time is None else False
         self.verbose = False
         gc.collect()
-        self.image_0 = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY) # 5808. Contents 0.
-        self.image_1 = bytearray(BYTES_PER_LINE * LINES_PER_DISPLAY) # 5808
+        self.image_0 = bytearray(BUFFER_SIZE) # 5808. Contents 0.
+        self.image_1 = bytearray(BUFFER_SIZE) # 5808
         self.asm_data = array('i', [0, 0, 0, 0])
         self.image = self.image_0
         self.image_old = self.image_1
@@ -131,10 +131,10 @@ class EPD(object):
         else:
             self.adc = pyb.ADC(pins['TEMPERATURE'])
 
-    def set_temperature(self):                  # Optional
+    def set_temperature(self):
         self.factored_stage_time = self.base_stage_time * temperature_to_factor_10x(self.temperature) / 10
 
-    def enter(self):                        # power up sequence
+    def enter(self):                            # power up sequence
         if self.compensate_temp:
             self.set_temperature()
         if self.verbose:
@@ -292,26 +292,29 @@ class EPD(object):
         self.EPD_image_0()
 
     def clear_data(self):
-        for x in range(len(self.image)):
-            self.image[x] = 0
+        zero(self.image, BUFFER_SIZE)
+        zero(self.image_old, BUFFER_SIZE)
 
 # EPD_partial_image() - fast update of current image. There are two schools of thought on this
 # https://github.com/repaper/gratis/issues/19
 # modified code at https://github.com/tvoverbeek/gratis/blob/master/PlatformWithOS/driver-common/V231_G2/epd.c
     def refresh(self, fast):
         if not fast:
-            self.update_old()
+            self.swap()
             self.frame_data_repeat(EPD_COMPENSATE, use_old = True)
             self.frame_data_repeat(EPD_WHITE, use_old = True)
-            self.update_old()
+            self.swap()
             self.frame_data_repeat(EPD_INVERSE, use_old = True)
             self.frame_data_repeat(EPD_NORMAL, use_old = True)
         self.frame_data_repeat(EPD_NORMAL, use_old = True)
         mv = memoryview(self.image_old)
         mv[:] = self.image
 
-    def exchange(self):
-        self.EPD_image()
+    def exchange(self, clear_data):
+        self.EPD_image()                        # Does not affect buffer currency
+        self.swap()                             # Current data -> old
+        if clear_data:                          # Option to clear new current buffer
+            zero(self.image, BUFFER_SIZE)
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius
@@ -323,7 +326,7 @@ class EPD(object):
 # END OF USER INTERFACE
 
 # self.use_old False is equivalent to passing NULL in old image
-# update_old() determines which buffer to use
+# swap() determines which buffer to use
 # clear display (anything -> white) called from clear_screen(), which handles clearing data
     def EPD_clear(self):
         self.frame_fixed_repeat(0xff, EPD_COMPENSATE)
@@ -337,20 +340,19 @@ class EPD(object):
         self.frame_fixed_repeat(0xaa, EPD_WHITE)
         self.frame_data_repeat(EPD_INVERSE, use_old = False)
         self.frame_data_repeat(EPD_NORMAL, use_old = False)
-        self.update_old()
-        zero(self.image, len(self.image))
+        self.swap()
+        zero(self.image, BUFFER_SIZE)
 
 # change from old image to new image called from exchange()
     def EPD_image(self):
-        self.update_old()
+        self.swap() # Display/clear old data
         self.frame_data_repeat(EPD_COMPENSATE, use_old = False)
         self.frame_data_repeat(EPD_WHITE, use_old = False)
-        self.update_old()
+        self.swap() # Display new
         self.frame_data_repeat(EPD_INVERSE, use_old = False)
         self.frame_data_repeat(EPD_NORMAL, use_old = False)
-        zero(self.image, len(self.image))
 
-    def update_old(self):
+    def swap(self):
         i = self.image_old
         self.image_old = self.image
         self.image = i

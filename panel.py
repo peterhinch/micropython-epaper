@@ -1,6 +1,6 @@
 # panel.py pin definition for Embedded Artists' 2.7 inch E-paper Display.
-# 28th Aug 2015
-# version 0.45
+# 18 Mar 2016
+# version 0.85
 
 # Copyright 2015 Peter Hinch
 #
@@ -29,14 +29,14 @@ def getpins(intside, model):
         result = {'PANEL_ON': 'Y3', 'BORDER': 'X12', 'DISCHARGE': 'Y4',
         'RESET': 'Y2', 'BUSY':   'X11', 'TEMPERATURE': 'X11', 'EPD_CS': 'Y5',
         'FLASH_CS': 'Y1', 'MOSI':   'Y8',  'MISO': 'Y7',
-        'SCK': 'Y6', 'SPI_BUS': 2, 'I2C_BUS': 1 }
+        'SCK': 'Y6', 'SPI_BUS': 'Y', 'I2C_BUS': 'X' }
         if model == ADAFRUIT:
             result['BUSY'] = 'X10'
     else:
         result =  {'PANEL_ON': 'X3', 'BORDER': 'Y12', 'DISCHARGE': 'X4',
         'RESET': 'X2', 'BUSY': 'Y11', 'TEMPERATURE': 'Y11', 'EPD_CS': 'X5',
         'FLASH_CS': 'X1', 'MOSI': 'X8',  'MISO': 'X7',
-        'SCK': 'X6', 'SPI_BUS': 1,  'I2C_BUS': 2}
+        'SCK': 'X6', 'SPI_BUS': 'X',  'I2C_BUS': 'Y'}
         if model == ADAFRUIT:
             result['BUSY'] = 'Y10'
     return result

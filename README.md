@@ -12,11 +12,12 @@ supported.
 
 This driver requires a Pyboard with firmware dated 31st Jan 2016 or later: an exception
 will be raised on import if this condition is not met. If the facility to store fonts
-in Flash is employed a build with this capability must be used. As of 3rd March 2016
+in Flash is employed a build with this capability must be used. As of 18th March 2016
 this feature has not been incorporated into the release firmware build.
 
-The driver is untested with the Pyboard Lite but its limited RAM indicates that it may not be
-successful, especially in FAST mode or modes using the Embedded Artists (EA) flash memory.
+The driver is untested with the Pyboard Lite but its limited RAM indicates that it is likely to be
+unsuccessful. The driver is fairly demanding on RAM especially in FAST mode or modes using the
+Embedded Artists (EA) flash memory.
 
 ### Introduction
 
@@ -53,9 +54,10 @@ screen transitions.
 
 "FAST" mode is intended for display of (fairly) realtime data. It uses more RAM and also precludes
 the concurrent use of the display and its onboard Flash memory. The following instructions largely
-refer to NORMAL mode, the differences implied by FAST mode are covered in a separate section below.
-In this mode the driver does cause the display to exhibit some "ghosting" where a trace of the
-prior image remains: work is in progress to attempt to reduce this.
+refer to NORMAL mode. FAST mode is a superset with features covered in a separate section below. In
+this mode the fastest update method causes the display to exhibit some "ghosting" where a trace of
+the prior image remains. After much effort to reduce this I'm doubtful whether further progress can
+be made without departing from the RePaper reference algorithms.
 
 # The driver
 
@@ -63,8 +65,7 @@ This enables the display of simple graphics and/or text in any font. The graphic
 readily be extended by the user. This document includes instructions for converting system fonts to
 a form usable by the driver (using free - as in beer - software). Such fonts may be edited prior to
 conversion. If anyone can point me to an open source pure Python solution - command line would be
-fine - I would gladly evaluate it. My own attempts at writing one have not been entirely
-successful.
+fine - I would gladly evaluate it. My own attempts at writing one were not entirely successful.
 
 It also supports the display of XBM format graphics files, including the full screen sample images
 from Embedded Artists.
@@ -77,7 +78,8 @@ The display is supplied with a 14 way ribbon cable. The easiest way to connect i
 to cut this cable in half and wire one half of it (each half is identical) as follows. I fitted the
 Pyboard with socket headers and wired the display cable to a 14 way pin header, enabling it to be
 plugged in to either side of the Pyboard (the two sides are symmetrical). I have labelled them L
-and R indicating the left and right sides of the board as seen with the USB connector at the top.
+and R indicating the left and right sides of the board as seen from the component side with the USB
+connector at the top.
 
 | display | signal     |  L  |  R  | Python name   |
 |:-------:|:----------:|:---:|:---:|:-------------:|
@@ -135,7 +137,7 @@ The Adafruit module is supplied with a cable: colours below refer to this.
 | 11 red    | Pwr        | Y3  | X3  | Pin_PANEL_ON  |
 | 12 white  | Discharge  | Y4  | X4  | Pin_DISCHARGE |
 
-Looking at the board oriented display side up and connector on the left. Pin 1 is the top left pin
+Looking at the board oriented display side up and connector on the left, Pin 1 is the top left pin
 (the left column are all odd numbered pins) and pin 2 is immediately to its right (right hand
 column is all the even pins). There is also small 1 and 2 on the PCB silk screen above the socket
 and a 19 and 20 below the socket.
@@ -143,9 +145,10 @@ and a 19 and 20 below the socket.
 # Getting started
 
 Assuming the device is connected on the 'L' side simply cut and paste this at the REPL. Note that
-with all code samples it's best to issue <ctrl>D before pasting to reset the Pyboard. Note that all
-the following code samples assume EA hardware: if you're using Adafruit add ``mode=epaper.ADAFRUIT``
-as a constructor argument.
+with all code samples it's best to issue <ctrl>D before pasting to reset the Pyboard: this is
+because the driver needs to instantiate large buffers. Memory allocation errors are likely unless
+RAM is first cleared by a soft reset. Note that all the following code samples assume EA hardware:
+if you're using Adafruit add ``mode=epaper.ADAFRUIT`` as a constructor argument.
 
 ```python
 import epaper
@@ -171,7 +174,7 @@ To employ the driver it is only necessary to import the epaper module and to ins
  3. epdpart.py Low level FAST mode driver for the EPD.
  4. flash.py Low level driver for the flash memory.
  5. panel.py Pin definitions for the display.
- 6. pyfont.py Support for frozen bytecode fonts.
+ 6. pyfont.py Support for frozen persistent bytecode fonts.
 
 Note that the flash drive will need to be formatted before first use: see the flash.py doc below.
 
@@ -198,10 +201,6 @@ described below to write text or graphics to the buffer and then to call ``show(
 display the result. The ``show()`` method is the only one to access the EPD module (although
 ``clear_screen()`` calls ``show()``). Others affect the buffer alone.
 
-There is support for micropower operation where the system power consumption must be minimised
-for long term battery operation. This uses external circuitry to shut down the power to the display
-before you issue ``pyb.stop()`` or ``pyb.standby``. See the appendix below.
-
 The coordinate system has its origin at the top left corner of the display, with integer
 X values from 0 to 263 and Y from 0 to 175 (inclusive).
 
@@ -218,10 +217,10 @@ patient. Or offer a patch :)
  1. ``side`` This must be 'L' or 'R' depending on the side of the Pyboard in use. Default 'L'. This
  is based on the wiring notes above.
 It has the following keyword only arguments:
- 2. ``mode`` epaper.NORMAL or epaper.FAST - default normal mode.
- 3. ``model`` epaper.EMBEDDED_ARTISTS or epaper.ADAFRUIT. Default EA.
+ 2. ``mode`` ``epaper.NORMAL`` or ``epaper.FAST`` - default normal mode.
+ 3. ``model`` ``epaper.EMBEDDED_ARTISTS`` or ``epaper.ADAFRUIT``. Default EA.
  4. ``use_flash`` Mounts the flash drive as /fc for general use. Default False. N/A in FAST mode.
- 5. ``compensate_temp`` Applies to FAST mode only. See below.
+ 5. ``up_time`` Applies to FAST mode only. See below.
 
 ``clear_screen()`` Clears the screen. Argument ``show`` Default True. This blanks the screen buffer
 and resets the text cursor. If ``show`` is set it also displays the result by calling the
@@ -279,7 +278,7 @@ in this case the flash device is mounted automatically.
 
 ## Font class
 
-This is a Python context manager whose purpose is to define a context for the Display's ``puts()``
+This is a Python context manager whose purpose is to define a context for the display's ``puts()``
 method described above. It ensures that any font file is closed after use. It has no user
 accessible properties or methods. A font is instantiated for the duration of outputting one or more
 strings. It must be provided with the path to a valid binary font file or the name of a frozen
@@ -307,37 +306,39 @@ access at the cost of having to build the firmware from source.
 
 # Module epd.py
 
-This provides the low level interface to the EPD display module. It provides two methods
-and one property accessed by the ``epaper`` module:
+This provides the low level interface to the EPD display module in NORMAL mode. It provides two
+methods and one property accessed by the ``epaper`` module:
 
 ### Methods
 
 ``showdata()`` Displays the current text buffer  
 ``clear_data()`` Clears the buffer without displaying it.
 
-### Property
+# Module epdpart.py
 
-``temperature`` the temperature in degrees Celsius
+This provides the low level interface to the EPD display module in FAST. Its interface is a
+superset of that of ``epd.py`` providing two additional methods:
+
+``refresh()`` Fast update using current data buffer.
+``exchange()`` A faster alternative to ``showdata``.
 
 # Module flash.py
 
-This provides an interface to the flash memory. It supports the block protocol
-enabling the flash device to be mounted on the Pyboard filesystem and used for any
-purpose. There is a compromise in the design of this class between RAM usage and
-flash device wear. The compromise chosen is to buffer the two most recently written
-sectors: this uses 8K of RAM and substantially reduces the number of erase/write cycles,
-especially for low numbered sectors, compared to a naive unbuffered approach. The
-anticipated use for the flash is for storing rarely changing images and fonts so I
+This provides an interface to the flash memory. It supports the block protocol enabling the flash
+device to be mounted on the Pyboard filesystem and used for any purpose. There is a compromise in
+the design of this class between RAM usage and flash device wear. The compromise chosen is to
+buffer the two most recently written sectors: this uses 8K of RAM and substantially reduces the
+number of erase/write cycles, especially for low numbered sectors, compared to a naive unbuffered
+approach. The anticipated use for the flash is for storing rarely changing images and fonts so I
 think the compromise is reasonable.
 
-Buffering also improves perceived performance by reducing the number of erase/write
-cycles.
+Buffering also improves perceived performance by reducing the number of erase/write cycles.
 
 ## Getting Started
 
-The flash drive must be formatted before first use. The code below will do this, and
-demonstrates copying a file to the drive (assuming you have first put the file on the
-SD card - modify this for any available file).
+The flash drive must be formatted before first use. The code below will do this, and demonstrates
+copying a file to the drive (assuming you have first put the file on the SD card - modify this for
+any available file).
 
 ```python
 import pyb, flash, os
@@ -475,28 +476,36 @@ Full details of how to achieve this are provided
 Note that there are two ways of conserving space on the Pyboard flash drive by incorporating Python
 code into firmware. Both are based on the fact that the bulk of the flash memory is accessible to
 firmware images but is not accessible as part of the ``/flash`` filesystem. Modules can be frozen
-as .py files or compiled to bytecode and frozen in that form. The former method is currently
-required for code which employs Viper and Native decorators (such as epd.py and epaper.py).
+as .py files or compiled to bytecode and built into the firmware as persistent bytecode. The former
+method is currently required for code which employs Viper or Native decorators or Assembler. This
+includes epd.py, epdpart.py and epaper.py.
 
 # FAST mode
 
 The graphics and text primitives operate identically in both modes: a buffer is updated without
 affecting the display. Then a ``Display`` method is called to update the display hardware; FAST
-mode offers an additional update method.
+mode offers two additional update methods.
 
 The mode is invoked by instantiating the Display object with ``mode=epaper.FAST``. In this mode the
 ``Display`` instance must be used within a context manager: this turns on the display electronics and
 ensures they are properly shut down. A consequence of this mode of operation is that the onboard
 Flash cannot be used while this context is active, so fonts must be stored elsewhere. The following
-additional ``Display`` method is supported:
+additional ``Display`` methods are supported:
 
-``refresh`` Quickly updates the display additively: existing content will be retained but new
+``refresh()`` Quickly updates the display additively: existing content will be retained but new
 content will be included (overwriting the old where they overlap). Currently this is imperfect with
 some ghosting evident.
 
+``exchange()`` This takes a single mandatory boolean argument ``clear_data``. Display data is
+double buffered. Calling ``exchange`` causes the current data to be displayed and the buffers to be
+swapped. If ``clear_data`` is ``True`` the new current buffer is cleared: this enables it to act as
+a faster version of ``show()``. If ``clear_data`` is ``False`` it provides a means of switching
+between two images. Ghosting should not be visible with this method.
+
 The ``Display`` constructor has an additional kwonly argument ``up_time`` applicable to
 FAST mode. If set it overrides the default temperature related value allowing the user to speed
-redrawing at the possible expense of more ghosting. Its value is in ms.
+redrawing at the likely expense of more ghosting. Its value is in ms: if not overridden its value
+ranges between 630-1260ms at typical room temperatures.
 
 The following example illustrates FAST mode by means of a simple digital clock display - some
 ghosting is evident. Note the additional two spaces at the end of the text: if refreshing
@@ -553,10 +562,10 @@ with a:
         with a.font('/sd/LiberationSerif-Regular45x44'):
             a.locate(0,0)
             a.puts('{:02d}.{:02d}.{:02d} '.format(h, m, s)) # trailing space allows for varying character width
-            secs(2 * math.pi * s/60)
-            mins(2 * math.pi * m/60)
-            hours(2 * math.pi * (h + m/60)/12)
-            a.refresh()
+        secs(2 * math.pi * s/60)
+        mins(2 * math.pi * m/60)
+        hours(2 * math.pi * (h + m/60)/12)
+        a.refresh()
 ```
 
 ### For experimenters
@@ -566,8 +575,6 @@ EPD instance. This is the time in ms that the driver will spend rewriting the da
 value is about 1200ms dependent on temperature. A way to speed updates at possible increase in
 ghosting is to set the ``Display`` constructor argument ``up_time`` to a value in ms: the value
 overrides the default regardless of temperature.
-
-Fast mode also has a method ``exchange()``. This alternative to ``show()`` is under development.
 
 The ``refresh`` method has a boolean argument ``fast``, defaulting ``True``. Setting this ``False``
 invokes a slower method advocated by some developers. Again, under investigation; I'm unimpressed

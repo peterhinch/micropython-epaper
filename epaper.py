@@ -1,7 +1,7 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.8
-# 8 Mar 2016 Adafruit module and fast (partial) updates.
+# version 0.85
+# 18 Mar 2016 Adafruit module and fast (partial) updates.
 # 2 Mar 2016 Power control support removed. Support for fonts as persistent byte code
 # 29th Jan 2016 Monospaced fonts supported.
 
@@ -146,7 +146,7 @@ class Font(object):
 
 class Display(object):
     FONT_HEADER_LENGTH = 4
-    def __init__(self, side='L',*, mode=NORMAL, model=EMBEDDED_ARTISTS, use_flash=False, up_time = None):
+    def __init__(self, side='L',*, mode=NORMAL, model=EMBEDDED_ARTISTS, use_flash=False, up_time=None):
         self.flash = None                       # Assume flash is unused
         self.in_context = False
         try:
@@ -239,10 +239,10 @@ class Display(object):
         self.checkcm()
         self.epd.refresh(fast)
 
-    def exchange(self):
+    def exchange(self, clear_data):
         checkstate(self.mode == FAST, 'exchange() invalid in normal mode')
         self.checkcm()
-        self.epd.exchange()
+        self.epd.exchange(clear_data)
 
     @property
     def temperature(self):                      # return temperature as integer in Celsius

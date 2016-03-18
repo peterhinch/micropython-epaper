@@ -31,7 +31,7 @@ with a:
         with a.font('/sd/LiberationSerif-Regular45x44'):
             a.locate(0,0)
             a.puts('{:02d}.{:02d}.{:02d} '.format(h, m, s)) # trailing space allows for varying character width
-            secs(2 * math.pi * s/60)
-            mins(2 * math.pi * m/60)
-            hours(2 * math.pi * (h + m/60)/12)
-            a.refresh()
+        secs(2 * math.pi * s/60)
+        mins(2 * math.pi * m/60)
+        hours(2 * math.pi * (h + m/60)/12)
+        a.refresh()
