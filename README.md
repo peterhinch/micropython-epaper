@@ -1,4 +1,4 @@
-﻿# micropython-epaper
+# micropython-epaper
 
 A driver to enable the Pyboard to access a 2.7 inch e-paper display from
 [Embedded Artists](http://www.embeddedartists.com/products/displays/lcd_27_epaper.php)
@@ -46,7 +46,7 @@ off the power to the display and any other peripherals before entering standby. 
 this is presented [here](https://github.com/peterhinch/micropython-micropower.git).
 
 This driver was ported from the RePaper reference designs [here](https://github.com/repaper/gratis.git).
-There are two reference drivers, one for resource constrained platforms (Arduino library) and 
+There are two reference drivers, one for resource constrained platforms (Arduino library) and
 another for systems with an OS. The latter attempts faster screen writes by employing a double
 buffered algorithm. This MicroPython driver supports both modes. By default it uses the resource
 constrained "NORMAL" single buffered mode: the downside is slower updates with repeated black-white
@@ -255,7 +255,7 @@ line starting on the next byte.
 be called from a ``with`` block that defines the font; text will be rendered to the pixel location
 of the text cursor. Newline characters and line wrapping are supported. Example usage:
 
-```python```
+```python
 with a.font('/sd/LiberationSerif-Regular45x44'):
  a.puts("Large font\ntext here")
 ```
@@ -269,7 +269,7 @@ The following methods are primarily for internal use and should not be used in n
 in this case the flash device is mounted automatically.
 
 ``mountflash()`` Mount the flash device.  
-``umountflash()`` Unmount the flash memory.
+``umountflash()`` Unmount the flash memory.  
 
 ### Properties
 
@@ -411,8 +411,8 @@ side of the Pyboard.
 # Fonts
 
 Fonts can be handled in two ways. The first employs binary font files located on any accessible
-drive including the flash device on the display. The second involves creating a Python script
-which includes the font data and implementing this as frozen bytecode. The font then resides on the
+drive including the flash device on the display. The second involves creating a Python script which
+includes the font data and implementing this as persistent bytecode. The font then resides on the
 Pyboard in flash memory as part of the firmware. These approaches are described below.
 
 ## Binary font files
@@ -435,9 +435,10 @@ The latter file can then be copied to the Pyboard and used by the driver.
 This assumes Linux but CfontToBinary.py is plain Python3 and should run on other platforms. 
 
 Although small fonts are displayed accurately they can be hard to read! Note that fonts
-can be subject to copyright restrictions. The provided font samples are released under open licences.
+can be subject to copyright restrictions. The provided font samples are released under open
+licences.
 
-## Frozen (persistent) bytecode
+## Persistent bytecode
 
 The aim here is to produce a single Python file which can be imported to enable access to all the
 fonts used in a project. Importing this in the normal way would use excessive amounts of RAM. The
