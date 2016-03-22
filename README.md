@@ -145,7 +145,7 @@ and a 19 and 20 below the socket.
 # Getting started
 
 Copy the modules listed below to the Pyboard. Assuming the device is connected on the 'L' side
-simply cut and paste this at the REPL. Note that with all code samples it's best to issue <ctrl>D
+simply cut and paste this at the REPL. Note that with all code samples it's best to issue ``<ctrl>D``
 before pasting to reset the Pyboard: this is because the driver needs to instantiate large buffers.
 Memory allocation errors are likely unless RAM is first cleared by a soft reset. Note that all the
 following code samples assume EA hardware: if you're using Adafruit add ``mode=epaper.ADAFRUIT``
@@ -579,7 +579,7 @@ underwhelmed so far. The code (epdpart.py) has web references in the comments.
 # RAM usage
 
 As mentioned in "Getting started" the driver uses a significant amount of RAM, especially in FAST
-mode. In development, issue <ctrl>D before importing and instantiating the Display. In code which
+mode. In development, issue ``<ctrl>D`` before importing and instantiating the Display. In code which
 is to run unattended, instantiate the Display early to ensure it can obtain contiguous RAM blocks
 for its buffers. With code such as this which employs a lot of RAM, heap fragmentation can become
 more of an issue than usual. To avoid allocation failures issue gc.collect() periodically, notably
