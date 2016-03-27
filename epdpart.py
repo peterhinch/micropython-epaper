@@ -293,7 +293,7 @@ class EPD(object):
 
     def clear_data(self):
         zero(self.image, BUFFER_SIZE)
-        zero(self.image_old, BUFFER_SIZE)
+#        zero(self.image_old, BUFFER_SIZE)
 
 # EPD_partial_image() - fast update of current image. There are two schools of thought on this
 # https://github.com/repaper/gratis/issues/19

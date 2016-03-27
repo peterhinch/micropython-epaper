@@ -131,9 +131,8 @@ class Font(object):
             if header[0] == 0x3f and header[1] == 0xe7:
                 self.bits_horiz = header[2] # font[1]
                 self.bits_vert = header[3] # font[2]
-                div, mod = divmod(self.bits_vert, 8)
-                self.bytes_vert = div if mod == 0 else div +1 # font[3]
-                self.bytes_per_ch = self.bytes_vert * self.bits_horiz +1 # font[0]
+                self.bytes_vert = (self.bits_vert + 7) // 8 # font[3]
+                self.bytes_per_ch = self.bytes_vert * self.bits_horiz + 1 # font[0]
             else:
                 raise FontFileError("Font file is invalid")
         self.exists = True
