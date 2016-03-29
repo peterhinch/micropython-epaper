@@ -15,9 +15,10 @@ will be raised on import if this condition is not met. If the facility to store 
 in Flash is employed a build with this capability must be used. As of 18th March 2016
 this feature has not been incorporated into the release firmware build.
 
-The driver is untested with the Pyboard Lite but its limited RAM indicates that it is likely to be
-unsuccessful. The driver is fairly demanding on RAM especially in FAST mode or modes using the
-Embedded Artists (EA) flash memory.
+The driver works on the Pyboard Lite but its limited RAM means that the board's use is probably
+best confined to simple applications. The driver is fairly demanding on RAM especially in FAST mode
+or modes using the Embedded Artists (EA) flash memory. A test of the FAST mode clock demo indicated
+that about 50% of the Lite's memory was used.
 
 ### Introduction
 
@@ -534,7 +535,7 @@ ghosting. A similar demo run on the Raspberry Pi with the reference driver resul
 amount of ghosting.
 
 ```python
-import epaper, time, math, pyb
+import epaper, time, math, pyb, gc
 a = epaper.Display('L', mode = epaper.FAST)
 
 def polar_line(origin, length, width):
@@ -564,6 +565,7 @@ with a:
         mins(2 * math.pi * m/60)
         hours(2 * math.pi * (h + m/60)/12)
         a.refresh()
+        gc.collect() # especially on PB Lite
 ```
 
 ### For experimenters
