@@ -6,25 +6,12 @@ from EPD import EPD
 
 WHITE = 1
 BLACK = 0
+origin = 100, 100 # of clock face
 
-class polar_line():
-    def __init__(self, origin, length, width):
-        self.width = width
-        self.length = length
-        self.x_end, self.y_end = None, None
-        self.x_origin, self.y_origin = origin
-
-    def draw_polar(self, radians):
-        self.x_end = self.x_origin + self.length * math.sin(radians)
-        self.y_end = self.y_origin - self.length * math.cos(radians)
-        draw.line([(self.x_origin, self.y_origin), (self.x_end, self.y_end)], fill = BLACK, width = self.width)
-
-
-origin = 100, 100
-secs = polar_line(origin, 50, 1)
-mins = polar_line(origin, 50, 2)
-hours = polar_line(origin, 30, 4)
-
+def polar_line(radians, length, width):
+    x_end = origin[0] + length * math.sin(radians)
+    y_end = origin[1] - length * math.cos(radians)
+    draw.line([(origin[0], origin[1]), (x_end, y_end)], fill = BLACK, width = width)
 
 epd = EPD()
 
@@ -46,9 +33,9 @@ while True:
     h, m, s = t[3:6]
     hh = h + m /60
     draw.text((0,0), '{:02d}.{:02d}.{:02d} '.format(h, m, s), font=font)
-    secs.draw_polar(2 * math.pi * s/60)
-    mins.draw_polar(2 * math.pi * m/60)
-    hours.draw_polar(2 * math.pi * (h + m/60)/12)
+    polar_line(2 * math.pi * s/60, 50, 1)
+    polar_line(2 * math.pi * m/60, 50, 2)
+    polar_line(2 * math.pi * (h + m/60)/12, 30, 4)
     epd.display(image)
     epd.partial_update()
 
