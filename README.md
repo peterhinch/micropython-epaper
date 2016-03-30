@@ -532,7 +532,7 @@ with a:
 
 This example (``clock.py``) has digital and analog displays and better illustrates the issue of
 ghosting. A similar demo run on the Raspberry Pi with the reference driver resulted in an identical
-amount of ghosting. [Reference](./GOSTING.md)
+amount of ghosting. [Reference](./GHOSTING.md)
 
 ```python
 import epaper, time, math, pyb, gc
