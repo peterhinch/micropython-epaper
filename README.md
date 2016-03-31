@@ -260,7 +260,8 @@ of the text cursor. Newline characters and line wrapping are supported. Example 
 
 ```python
 with a.font('/sd/LiberationSerif-Regular45x44'):
- a.puts("Large font\ntext here")
+   a.puts("Large font\ntext here")
+a.show()
 ```
 
 ``setpixel()`` Set or clear a pixel. Arguments ``x, y, black``. Checks for and ignores pixels not
@@ -290,7 +291,7 @@ font. See the code sample above.
 By default fonts are proportional. The way font files are created this even applies to fonts
 designed for fixed-pitch display: they will be rendered in a proportional manner by default. Where
 true monospaced output is required, for best results a non-proportional font should be used. It can
-then be employed as follows:
+then be employed as follows (a is a Display instance):
 
 ```python
 a.clear_screen()
