@@ -164,7 +164,8 @@ To clear the screen and print a message (assuming we are using an SD card):
 ```python
 a.clear_screen()
 with a.font('/sd/inconsolata'):
- a.puts("Large font\ntext here")
+    a.puts("Large font\ntext here")
+a.show()
 ```
 
 # Modules
@@ -294,7 +295,8 @@ then be employed as follows:
 ```python
 a.clear_screen()
 with a.font('/sd/inconsolata', monospaced = True):
- a.puts("Large font\ntext here")
+    a.puts("Large font\ntext here")
+a.show()
 ```
 
 In the interests of conserving scarce RAM, fonts are stored in binary files. Individual
