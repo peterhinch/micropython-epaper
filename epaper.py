@@ -156,7 +156,7 @@ class Display(object):
             raise ValueError('Unsupported model')
         if mode == FAST and use_flash:
             raise ValueError('Flash memory unavailable in fast mode')
-        if mode == NORMAL and time is not None:
+        if mode == NORMAL and up_time is not None:
             raise ValueError('Cannot set up_time in normal mode')
         if mode == NORMAL:
             from epd import EPD
