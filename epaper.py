@@ -460,7 +460,7 @@ class Display(object):
         bytes_vert = font.bytes_vert
         fontbuf = font.fontbuf
         relch = c - 32
-        if relch > font.nchars:
+        if relch > font.nchars or relch < 0:
             raise ValueError('Illegal character')
         offset = relch * font.bytes_per_ch
         bh = font.bits_horiz if font.monospaced else fontbuf[offset] # Char width
