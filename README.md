@@ -20,6 +20,8 @@ best confined to simple applications. The driver is fairly demanding on RAM espe
 or modes using the Embedded Artists (EA) flash memory. A test of the FAST mode clock demo indicated
 that about 50% of the Lite's memory was used.
 
+![Sample](IMG_2340.JPG)
+
 ### Introduction
 
 E-paper displays have high contrast and the ability to retain an image with the power
