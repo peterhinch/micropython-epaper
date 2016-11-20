@@ -28,11 +28,6 @@ BYTES_PER_LINE = const(33)
 BITS_PER_LINE = const(264)
 
 gc.collect()
-frozen_fonts = True
-try:
-    from fonts import fonts
-except ImportError:
-    frozen_fonts = False
 
 def buildcheck(tupTarget):
     fail = True
@@ -95,46 +90,49 @@ class FontFileError(Exception):
 class Font(object):
     def __init__(self):
         self.bytes_per_ch = 0   # Number of bytes to define a character
-        self.bytes_vert = 0     # No. of bytes per character column
+        self.bytes_horiz = 0    # No. of bytes per character row
         self.bits_horiz = 0     # Horzontal bits in character matrix
         self.bits_vert = 0      # Vertical bits in character matrix
         self.monospaced = False # Default is variable width
         self.exists = False
-        self.fontbuf = None
+        self.modfont = None
         self.fontfilename = None
         self.fontfile = None
-        self.nchars = 0
 
+    # monospaced only applies to binary files. Since these lack an index FIXME
+    # characters are saved in fixed pitch with width data, hence can be
+    # rendered as fixed or variable pitch.
+    # Python fonts are saved as variable or fixed pitch depending on the -f arg.
+    # The monospaced flag saved with the file enables the renderer to
+    # determine the correct x advance.
     def __call__(self, fontfilename, monospaced = False):
         self.fontfilename = fontfilename
         self.monospaced = monospaced
         return self
 
     def __enter__(self): #fopen(self, fontfile):
-        if frozen_fonts and self.fontfilename in fonts:
+        if isinstance(self.fontfilename, type(os)):  # Using a Python font
             self.fontfile = None
-            f = fonts[self.fontfilename]
-            self.fontbuf = f.font
-            self.bytes_per_ch = f.bytes_per_ch
-            self.bytes_vert = f.bytes_vert
-            self.bits_horiz = f.bits_horiz
-            self.bits_vert = f.bits_vert
-            self.nchars = f.nchars
+            f = self.fontfilename
+            self.monospaced = f.monospaced()
+            self.modfont = f
+            self.bits_horiz = f.max_width()
+            self.bits_vert = f.height()
         else:
-            self.fontbuf = None
+            self.modfont = None
             try:
                 f = open(self.fontfilename, 'rb')
             except OSError as err:
                 raise FontFileError(err)
             self.fontfile = f
             header = f.read(4)
-            if header[0] == 0x3f and header[1] == 0xe7:
+            if header[0] == 0x42 and header[1] == 0xe7:
                 self.bits_horiz = header[2] # font[1]
                 self.bits_vert = header[3] # font[2]
-                self.bytes_vert = (self.bits_vert + 7) // 8 # font[3]
-                self.bytes_per_ch = self.bytes_vert * self.bits_horiz + 1 # font[0]
             else:
                 raise FontFileError("Font file is invalid")
+        self.bytes_horiz = (self.bits_horiz + 7) // 8
+        self.bytes_per_ch = self.bytes_horiz * self.bits_vert
         self.exists = True
         return self
 
@@ -432,53 +430,52 @@ class Display(object):
         self.char_x = x                         # Text input cursor to (x, y)
         self.char_y = y
 
-    def _character(self, c):                    # Output from file
+# font.bytes_horiz
+# In cse of font file it's the pysical width of every character as stored in file
+# In case of Python font it's the value of max_width converted to bytes
+    def _character(self, c, usefile):
         font = self.font                        # Cache for speed
-        ff = font.fontfile
-        bv = font.bits_vert
-        ff.seek(self.FONT_HEADER_LENGTH + (c -32) * font.bytes_per_ch)
-        fontbuf = ff.read(font.bytes_per_ch)
-        bh = font.bits_horiz if font.monospaced else fontbuf[0] # Char width
+        bits_vert = font.bits_vert
+        if usefile:
+            ff = font.fontfile
+            ff.seek(self.FONT_HEADER_LENGTH + (c -32) * (font.bytes_per_ch + 1))
+            buf = ff.read(font.bytes_per_ch + 1)
+            # Characters are stored as constant width.
+            bytes_horiz = font.bytes_horiz      # No. of bytes before next row
+            # Advance = bits_horiz if variable pitch else font.bits_horiz
+            bits_horiz = buf[0]
+            offset = 1
+        else:
+            modfont = font.modfont
+            buf, height, bits_horiz = modfont.get_ch(chr(c))
+            # Width varies between characters
+            bytes_horiz = (bits_horiz + 7) // 8
+            offset = 0
 
-        if (self.char_x + bh) > BITS_PER_LINE :
+        if (self.char_x + bytes_horiz * 8) > BITS_PER_LINE :
             self.char_x = 0
-            self.char_y += bv
-            if self.char_y >= (LINES_PER_DISPLAY - bv):
+            self.char_y += bits_vert
+            if self.char_y >= (LINES_PER_DISPLAY - bits_vert):
                 self.char_y = 0
-                                                # write out the character
-        for bit_vert in range(bv):              # for each vertical line
-            bytenum = bit_vert >> 3
-            bit = 1 << (bit_vert & 0x07)        # Faster than divmod
-            for bit_horiz in range(bh):         #  horizontal line
-                fontbyte = fontbuf[font.bytes_vert * bit_horiz + bytenum +1]
-                self.setpixelfast(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
-        self.char_x += bh                       # width of current char
 
-    def _char(self, c):                         # Output from frozen bytecode
-        font = self.font                        # Cache for speed
-        bv = font.bits_vert
-        bytes_vert = font.bytes_vert
-        fontbuf = font.fontbuf
-        relch = c - 32
-        if relch > font.nchars or relch < 0:
-            raise ValueError('Illegal character')
-        offset = relch * font.bytes_per_ch
-        bh = font.bits_horiz if font.monospaced else fontbuf[offset] # Char width
-        offset += 1                             # Font data
-
-        if (self.char_x + bh) > BITS_PER_LINE :
-            self.char_x = 0
-            self.char_y += bv
-            if self.char_y >= (LINES_PER_DISPLAY - bv):
-                self.char_y = 0
-                                                # write out the character
-        for bit_vert in range(bv):              # for each vertical line
-            bytenum = bit_vert >> 3
-            bit = 1 << (bit_vert & 0x07)        # Faster than divmod
-            for bit_horiz in range(bh): #  horizontal line
-                fontbyte = fontbuf[offset + bytes_vert * bit_horiz + bytenum]
-                self.setpixelfast(self.char_x +bit_horiz, self.char_y +bit_vert, (fontbyte & bit) > 0)
-        self.char_x += bh                       # width of current char
+        image = self.epd.image
+        y = self.char_y                         # x, y are pixel coordinates
+        for bit_vert in range(bits_vert):       # for each vertical line
+            x = self.char_x
+            for byte_horiz in range(bytes_horiz):
+                fontbyte = buf[bit_vert * bytes_horiz + byte_horiz + offset]
+                index = (x >> 3) + y * BYTES_PER_LINE
+                nbits = x & 0x07
+                if nbits == 0:
+                    image[index] = fontbyte
+                else:
+                    image[index] &= (0xff >> (8 - nbits))
+                    image[index] |= (fontbyte << nbits)
+                    image[index + 1] &= (0xff << nbits)
+                    image[index + 1] |= (fontbyte >> (8 - nbits))
+                x += 8
+            y += 1
+        self.char_x += font.bits_horiz if font.monospaced else bits_horiz
 
     def _putc(self, value, usefile):            # print char
         if (value == NEWLINE):
@@ -487,18 +484,15 @@ class Display(object):
             if (self.char_y >= LINES_PER_DISPLAY - self.font.bits_vert):
                 self.char_y = 0
         else:
-            if usefile:
-                self._character(value)          # From file
-            else:
-                self._char(value)               # From frozen bytecode
+            self._character(value, usefile)
         return value
 
     def puts(self, s):                          # Output a string at cursor
         if self.font.exists:
-            usefile = self.font.fontbuf is None
+            usefile = self.font.modfont is None # No font module
             for char in s:
                 c = ord(char)
-                if (c > 31 and c < 128) or c == NEWLINE:
+                if (c > 31 and c < 127) or c == NEWLINE:
                     self._putc(c, usefile)
         else:
              raise FontFileError("There is no current font")
