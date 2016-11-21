@@ -114,6 +114,13 @@ class Font(object):
         if isinstance(self.fontfilename, type(os)):  # Using a Python font
             self.fontfile = None
             f = self.fontfilename
+            ok = False
+            try:
+                ok = f.hmap() and f.reverse()
+            except AttributeError:
+                pass
+            if not ok:
+                raise FontFileError('Font module {} is invalid'.format(f.__name__))
             self.monospaced = f.monospaced()
             self.modfont = f
             self.bits_horiz = f.max_width()
@@ -130,7 +137,7 @@ class Font(object):
                 self.bits_horiz = header[2] # font[1]
                 self.bits_vert = header[3] # font[2]
             else:
-                raise FontFileError("Font file is invalid")
+                raise FontFileError('Font file {} is invalid'.format(self.fontfilename))
         self.bytes_horiz = (self.bits_horiz + 7) // 8
         self.bytes_per_ch = self.bytes_horiz * self.bits_vert
         self.exists = True
