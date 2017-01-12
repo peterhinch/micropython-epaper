@@ -446,11 +446,11 @@ Pyboard in flash memory as part of the firmware. These approaches are described 
 
 Font files are created using the ``font_to_py.py`` [utility](https://github.com/peterhinch/micropython-font-to-py.git).
 This runs on a PC and converts industry standard ``ttf`` or ``otf`` files to Python source or to
-binary format. The following examples assume you want to produce a 44 pixel high font. A Python
-output file is specified by assigning a ``.py`` extension to the file.
+binary format. The following examples assume you want to produce a 44 pixel high font, in the
+first case a binary file (``-b`` argument) and in the second a Python source file.
 
 ```
-./font_to_py.py LiberationSerif-Regular.ttf 44 -xr lib-serif44
+./font_to_py.py LiberationSerif-Regular.ttf 44 -xrb lib-serif44
 ./font_to_py.py LiberationSerif-Regular.ttf 44 -xr lib-serif44.py
 ```
 
