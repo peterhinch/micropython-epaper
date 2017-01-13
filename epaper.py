@@ -496,10 +496,13 @@ class Display(object):
 
     def puts(self, s):                          # Output a string at cursor
         if self.font.exists:
-            usefile = self.font.modfont is None # No font module
-            for char in s:
-                c = ord(char)
-                if (c > 31 and c < 127) or c == NEWLINE:
-                    self._putc(c, usefile)
+            if self.font.modfont is None:       # No font module: using binary file
+                for char in s:
+                    c = ord(char)
+                    if (c > 31 and c < 127) or c == NEWLINE:
+                        self._putc(c, True)
+            else:                               # Python font file is self-checking
+                for char in s:
+                    self._putc(ord(char), False)
         else:
              raise FontFileError("There is no current font")
