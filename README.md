@@ -196,7 +196,7 @@ Mandatory modules:
  3. `panel.py` Pin definitions for the display.  
 
 Optional modules:  
- 4. `epdpart.py` Low level FAST mode driver for the EPD.
+ 4. `epdpart.py` Low level FAST mode driver for the EPD.  
  5. `flash.py` Low level driver for the flash memory.
 
 Note that the flash drive will need to be formatted before first use: see the
