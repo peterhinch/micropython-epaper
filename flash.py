@@ -1,7 +1,8 @@
 # flash.py module for Embedded Artists' 2.7 inch E-paper Display. Imported by epaper.py
 # Provides optional support for the flash memory chip
 # Peter Hinch
-# version 0.6
+# version 0.7
+# 17 June 2018 Block protocol replaced with IOCTL
 # 2 Mar 2016 Power control support removed
 
 # Copyright 2013 Pervasive Displays, Inc, 2015 Peter Hinch
@@ -104,7 +105,7 @@ class FlashClass(object):
             raise FlashException("Unsupported flash device")
 
     def end(self):                              # Shutdown before using EPD
-        self.sync()
+        self.synchronise()
         self.pinCS.high()
         self.spi.deinit()
 
@@ -239,7 +240,7 @@ class FlashClass(object):
         self._read(cache, sector * FLASH_SECTOR_SIZE) # Read new sector
         cache[index : index + 512] = buf        # and update
 
-# ******* THE BLOCK PROTOCOL *******
+# ******* THE IOCTL PROTOCOL *******
 # In practice MicroPython currently only reads and writes single blocks but the protocol calls
 # for multiple blocks so these functions aim to provide that capability
     def readblocks(self, blocknum, buf):
@@ -262,14 +263,14 @@ class FlashClass(object):
             start += 512
             blocknum += 1
 
-    def sync(self):
+    def synchronise(self):  # Renamed: ioctl protocol doesn't like count() so may not like sync()
         for sector in self.buffered_sectors:
             self._writesector(sector)           # Only if dirty
 
-    def count(self):
-        return 8192 # 8192*512 = 4MByte
-
-# ******* UTILITY TO ENABLE INITIAL FORMAT *******
-# See README. This wipes the filesystem!
-    def low_level_format(self):
-        self._sector_erase(0)
+    def ioctl(self, op, arg):
+        if op == 3:
+            self.synchronise()
+        if op == 4: # get number of blocks
+            return 8192
+        if op == 5: # get block size
+            return 512

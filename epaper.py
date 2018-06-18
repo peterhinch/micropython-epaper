@@ -1,6 +1,7 @@
 # epaper.py main module for Embedded Artists' 2.7 inch E-paper Display.
 # Peter Hinch
-# version 0.85
+# version 0.9
+# 17 Jun 2018 Adapted for VFS mount/unmount.
 # 18 Mar 2016 Adafruit module and fast (partial) updates.
 # 2 Mar 2016 Power control support removed. Support for fonts as persistent byte code
 # 29th Jan 2016 Monospaced fonts supported.
@@ -21,25 +22,13 @@
 
 # Code translated and developed from https://developer.mbed.org/users/dreschpe/code/EaEpaper/
 
-import pyb, os, gc
+import pyb, gc, uos
 from panel import NORMAL, FAST, EMBEDDED_ARTISTS, ADAFRUIT
 LINES_PER_DISPLAY = const(176)  # 2.7 inch panel only!
 BYTES_PER_LINE = const(33)
 BITS_PER_LINE = const(264)
 
 gc.collect()
-
-def buildcheck(tupTarget):
-    fail = True
-    if 'uname' in dir(os):
-        datestring = os.uname()[3]
-        date = datestring.split(' on')[1]
-        idate = tuple([int(x) for x in date.split('-')])
-        fail = idate < tupTarget
-    if fail:
-        raise OSError('This driver requires a firmware build dated {:4d}-{:02d}-{:02d} or later'.format(*tupTarget))
-
-buildcheck((2016,1,31))         # Ensure kwonly args supported ?
 
 NEWLINE = const(10)             # ord('\n')
 
@@ -111,7 +100,7 @@ class Font(object):
         return self
 
     def __enter__(self): #fopen(self, fontfile):
-        if isinstance(self.fontfilename, type(os)):  # Using a Python font
+        if isinstance(self.fontfilename, type(uos)):  # Using a Python font
             self.fontfile = None
             f = self.fontfilename
             ok = False
@@ -179,6 +168,7 @@ class Display(object):
         self.mounted = False                    # umountflash() not to sync
         if use_flash:
             from flash import FlashClass
+            gc.collect()
             self.flash = FlashClass(intside)
             self.umountflash()                  # In case mounted by prior tests.
             self.mountflash()
@@ -203,16 +193,17 @@ class Display(object):
         if self.flash is None:                  # Not being used
             return
         self.flash.begin()                      # Initialise.
-        pyb.mount(self.flash, self.flash.mountpoint)
+        vfs = uos.VfsFat(self.flash)  # Instantiate FAT filesystem
+        uos.mount(vfs, self.flash.mountpoint)
         self.mounted = True
 
     def umountflash(self):                      # Unmount flash
         if self.flash is None:
             return
         if self.mounted:
-            self.flash.sync()
+            self.flash.synchronise()
         try:
-            pyb.mount(None, self.flash.mountpoint)
+            uos.umount(self.flash.mountpoint)
         except OSError:
             pass                                # Don't care if it wasn't mounted
         self.flash.end()                        # Shut down
@@ -458,12 +449,12 @@ class Display(object):
             # Width varies between characters
             bytes_horiz = (bits_horiz + 7) // 8
             offset = 0
-
+        # Sanity checks: prevent index errors. Wrapping should be done at string/word level.
         if (self.char_x + bytes_horiz * 8) > BITS_PER_LINE :
             self.char_x = 0
             self.char_y += bits_vert
-            if self.char_y >= (LINES_PER_DISPLAY - bits_vert):
-                self.char_y = 0
+        if self.char_y >= (LINES_PER_DISPLAY - bits_vert):
+            self.char_y = 0
 
         image = self.epd.image
         y = self.char_y                         # x, y are pixel coordinates
