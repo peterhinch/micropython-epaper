@@ -189,10 +189,12 @@ a.show()
 
 To employ the driver it is only necessary to import the epaper module and to
 instantiate the `Display` class. The driver comprises the following modules.  
+
 Mandatory modules:  
  1. `epaper.py` The user interface to the display and flash memory.
  2. `epd.py` Low level NORMAL mode driver for the EPD (electrophoretic display).
  3. `panel.py` Pin definitions for the display.  
+
 Optional modules:  
  4. `epdpart.py` Low level FAST mode driver for the EPD.
  5. `flash.py` Low level driver for the flash memory.
