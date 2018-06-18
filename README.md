@@ -204,17 +204,24 @@ Note that the flash drive will need to be formatted before first use: see the
 
 # Files and Utilities
 
-`LiberationSerif-Regular44` Sample binary font file (Times Roman lookalike).  
-`courier25` 25 pixel high terminal font (binary font file).  
-`LiberationSerif-Regular44.py` Above files in Python format
-`courier25.py`  
-`aphrodite_2_7.xbm` Sample full screen image files from Embedded Artists.  
-`cat_2_7.xbm`  
-`ea_2_7.xbm`  
-`saturn_2_7.xbm`  
-`text_image_2_7.xbm`  
-`venus_2_7.xbm`
-`SIL Open Font License.txt` License for fonts.
+Sample binary font files:  
+ * `LiberationSerif-Regular44` (Times Roman lookalike).  
+ * `courier25` 25 pixel high terminal font.  
+
+Same fonts in Python source format:  
+ * `LiberationSerif-Regular44.py`  
+ * `courier25.py`  
+
+Sample full screen image files from Embedded Artists.  
+ * `aphrodite_2_7.xbm`  
+ * `cat_2_7.xbm`  
+ * `ea_2_7.xbm`  
+ * `saturn_2_7.xbm`  
+ * `text_image_2_7.xbm`  
+ * `venus_2_7.xbm`  
+
+License for fonts.  
+ * `SIL Open Font License.txt`
 
 # Module epaper.py
 
