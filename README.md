@@ -2,7 +2,7 @@
 
 A driver to enable the Pyboard to access a 2.7 inch e-paper display from
 [Embedded Artists](http://www.embeddedartists.com/products/displays/lcd_27_epaper.php).
-The onboard Flash memory is optionlly supported.
+The onboard Flash memory is optionally supported.
 
 The display can also be bought from Mouser Electronics (a company with worldwide depots) e.g.
 [MouserUK](http://www.mouser.co.uk/ProductDetail/Embedded-Artists/EA-LCD-009/?qs=sGAEpiMZZMt7dcPGmvnkBrNVf0ehHpp1LPMnQSPTe1M%3d).
@@ -20,7 +20,8 @@ that about 50% of the Lite's memory was used.
 ![Sample](IMG_2340.JPG)
 
 An open source Python utility is used to create binary and python fonts from
-`ttf` or `otf` sources. Python fonts may be frozen as bytecode to conserve RAM.
+`ttf` or `otf` sources. Python fonts may be frozen as bytecode to conserve RAM,
+binary font files are accessed from a mounted drive.
 
 # Introduction
 
@@ -149,12 +150,13 @@ and a 19 and 20 below the socket.
 
 # Getting started
 
-Copy the modules listed below to the Pyboard. Assuming the device is connected on the 'L' side
-simply cut and paste this at the REPL. Note that with all code samples it's best to issue `<ctrl>D`
-before pasting to reset the Pyboard: this is because the driver needs to instantiate large buffers.
-Memory allocation errors are likely unless RAM is first cleared by a soft reset. Note that all the
-following code samples assume EA hardware: if you're using Adafruit add `mode=epaper.ADAFRUIT`
-as a constructor argument.
+Copy the mandatory modules listed below to the Pyboard. Assuming the device is
+connected on the 'L' side simply cut and paste this at the REPL. Note that with
+all code samples it's best to issue `<ctrl>D` before pasting to reset the
+Pyboard: this is because the driver needs to instantiate large buffers. Memory
+allocation errors are likely unless RAM is first cleared by a soft reset. Note
+that all the following code samples assume EA hardware: if using Adafruit add
+`mode=epaper.ADAFRUIT` as a constructor argument.
 
 ```python
 import epaper
@@ -190,7 +192,7 @@ instantiate the `Display` class. The driver comprises the following modules.
 Mandatory modules:  
  1. `epaper.py` The user interface to the display and flash memory.
  2. `epd.py` Low level NORMAL mode driver for the EPD (electrophoretic display).
- 3. `panel.py` Pin definitions for the display.
+ 3. `panel.py` Pin definitions for the display.  
 Optional modules:  
  4. `epdpart.py` Low level FAST mode driver for the EPD.
  5. `flash.py` Low level driver for the flash memory.
