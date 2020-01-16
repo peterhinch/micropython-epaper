@@ -2,8 +2,8 @@ I'm rarely impressed by alternative clock displays firstly because the
 traditional analog design is so damn good. You can tell the time at a glance
 just from the angle between the two hands: how can you improve on that? But
 then I found
-[this bizarre watch display](watch.mp4) on the
-internet.
+[this bizarre watch display](watch.mp4) on the internet (press download to view
+the video).
 
 Hard to realise on a mechanical watch ;) but interesting. And it got me
 thinking. This repo has analog and digital clocks on the e-paper display. In
@@ -35,3 +35,5 @@ Implemented on a Pyboard 1.x with Pervasive Displays EPD.
 
 This demo will need minor adaptation to run. The `micropower` import is only
 required for my hardware, to turn on power to the display.
+
+###### [Main README](../README.md)
