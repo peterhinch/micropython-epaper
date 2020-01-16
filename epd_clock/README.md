@@ -2,7 +2,7 @@ I'm rarely impressed by alternative clock displays firstly because the
 traditional analog design is so damn good. You can tell the time at a glance
 just from the angle between the two hands: how can you improve on that? But
 then I found
-[this bizarre watch display](http://hinch.me.uk/newclock/watch.mp4) on the
+[this bizarre watch display](watch.mp4) on the
 internet.
 
 Hard to realise on a mechanical watch ;) but interesting. And it got me
