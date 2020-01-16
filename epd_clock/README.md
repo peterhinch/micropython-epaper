@@ -16,7 +16,9 @@ fast updates, in which case you get ghosting.
 E-paper displays in fast mode are additive. Ghosting only occurs when you turn
 a black pixel white. I therefore devised this adaptation of the video which
 only turns pixels white with a full refresh once per hour.
+
 ![Image](IMG_3139.JPG)
+
 As in the video the display inside the circle is a window onto a dial too large
 to fit the screen. The dial is the minutes display, with a range of +-30
 minutes. The hour hand (chevron) moves to the next hour when the minutes pass
@@ -26,7 +28,9 @@ scale.
 The above image shows 20 to 7 PM, that below shows nearly quarter past 2 PM.
 Like a conventional analog clock it encourages reading the display in the way
 in which we normally describe time.
+
 ![Image](IMG_3140.JPG)
+
 Implemented on a Pyboard 1.x with Pervasive Displays EPD.
 
 This demo will need minor adaptation to run. The `micropower` import is only

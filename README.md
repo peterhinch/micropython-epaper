@@ -507,8 +507,8 @@ Fast mode offers a way to update the display in a way which avoids the flashing
 black and white of a normal update. It has a drawback known as "ghosting"
 whereby black pixels remain faintly visible if they have subsequently been
 turned white. In some cases careful interface design can overcome this
-limitation: see the `epd_clock/README.md` demo with a novel analog clock
-display.
+limitation: see the [epd clock](epd_clock/README.md) demo with a novel analog
+clock display.
 
 A typical fast mode application might have this general form, where on occasion
 a full (slow) screen update is performed, with intermediate fast updates (with
