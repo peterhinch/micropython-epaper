@@ -291,9 +291,14 @@ class EPD(object):
         self.EPD_clear()
         self.EPD_image_0()
 
-    def clear_data(self):
-        zero(self.image, BUFFER_SIZE)
-#        zero(self.image_old, BUFFER_SIZE)
+    def clear_data(self, both):
+        if both:  # Reset buffers to initial state
+            zero(self.image_0, BUFFER_SIZE)
+            zero(self.image_1, BUFFER_SIZE)
+            self.image = self.image_0
+            self.image_old = self.image_1
+        else:
+            zero(self.image, BUFFER_SIZE)
 
 # EPD_partial_image() - fast update of current image. There are two schools of thought on this
 # https://github.com/repaper/gratis/issues/19

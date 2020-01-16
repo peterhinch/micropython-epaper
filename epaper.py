@@ -219,10 +219,10 @@ class Display(object):
             self.epd.showdata()
         self.mountflash()
 
-    def clear_screen(self, show=True):
+    def clear_screen(self, show=True, both=False):
         self.checkcm()
         self.locate(0, 0)                       # Reset text cursor
-        self.epd.clear_data()
+        self.epd.clear_data(both)
         if show:
             if self.mode == NORMAL:
                 self.show()

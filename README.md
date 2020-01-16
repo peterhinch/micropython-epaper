@@ -254,9 +254,10 @@ It has the following keyword only arguments:
 
 ### Methods
 
-`clear_screen()` Clears the screen. Argument `show` Default True. This blanks the screen buffer
-and resets the text cursor. If `show` is set it also displays the result by calling the
-`show()` method.  
+`clear_screen(show=True, both=False)` Clears the screen. Argument `show` blanks
+the screen buffer and resets the text cursor. If `show` is set it also displays
+the result by calling the `show()` method. The `both` arg is ignored in
+normal mode. See FAST mode below for its usage.
 
 `show()` Displays the contents of the screen buffer.  
 
@@ -494,14 +495,40 @@ is switched (such as the flash memory on a power-switched display).
 Full details of how to achieve this are provided
 [here](https://github.com/peterhinch/micropython-micropower.git).
 
-Note that there are two ways of conserving space on the Pyboard flash drive by incorporating Python
-code into firmware. Both are based on the fact that the bulk of the flash memory is accessible to
-firmware images but is not accessible as part of the `/flash` filesystem. Modules can be frozen
-as .py files or compiled to bytecode and built into the firmware as persistent bytecode. The former
-method is currently required for code which employs Viper, Native or Assembler decorators. This
-includes epd.py, epdpart.py and epaper.py.
+# Frozen bytecode
+
+RAM and space on the Pyboard flash drive may be conserved by freezing bytecode.
+Note that the optional `epdpart.py` file cannot currently be frozen because it
+includes Arm Thumb assembler code.
 
 # FAST mode
+
+Fast mode offers a way to update the display in a way which avoids the flashing
+black and white of a normal update. It has a drawback known as "ghosting"
+whereby black pixels remain faintly visible if they have subsequently been
+turned white. In some cases careful interface design can overcome this
+limitation: see the `epd_clock/README.md` demo with a novel analog clock
+display.
+
+A typical fast mode application might have this general form, where on occasion
+a full (slow) screen update is performed, with intermediate fast updates (with
+potential ghosting).
+
+```python
+epd = epaper.Display(side = 'L', mode = epaper.FAST)
+with epd:
+    while True:
+        # Check for need to update
+        if an_update_is_needed:
+            if a_major_update:  # Slow display of blank screen with flashing:
+                # clears any ghosting. Reset buffers to initial state.
+                epd.clear_screen(True, True)
+            else:  # minor update
+                epd.clear_screen(False)  # Clear current buffer, don't display
+            populate(epd)  # Perform graphics and/or text display of entire screen
+            epd.refresh()  # Physically update display. Minor updates may have ghosting.
+        time.sleep(20)
+```
 
 The graphics and text primitives operate identically in both modes: a buffer is updated without
 affecting the display. Then a `Display` method is called to update the display hardware; FAST
@@ -527,6 +554,13 @@ The `Display` constructor has an additional kwonly argument `up_time` applicable
 FAST mode. If set it overrides the default temperature related value allowing the user to speed
 redrawing at the likely expense of more ghosting. Its value is in ms: if not overridden its value
 ranges between 630-1260ms at typical room temperatures.
+
+The `clear_screen` method has an additional `both` arg. If this is set, the two
+buffers are cleared and the pointers reset: essentially the driver is restored
+to its power-on state. The `show` arg operates as above: if `True` the screen
+will be cleared. Such a reset is recommended prior to a complete redraw of the
+screen: after writing text and graphics `refresh` will update the entire
+display.
 
 The following example illustrates FAST mode by means of a simple digital clock display - some
 ghosting is evident. Note the additional two spaces at the end of the text: if refreshing
