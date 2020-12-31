@@ -657,4 +657,4 @@ Further sources of information:
 
 Fonts acquired from [fontsquirrel](https://www.fontsquirrel.com/).
 
-Notes on the font file layout are available [here](https://github.com/peterhinch/micropython-samples/blob/master/font/README.md).
+Notes on the font file layout are available [here](https://github.com/peterhinch/micropython-font-to-py/blob/master/writer/DRIVERS.md#python-font-files).
