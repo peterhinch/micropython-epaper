@@ -650,7 +650,7 @@ Graphics code derived from [ARM mbed](https://developer.mbed.org/users/dreschpe/
 [Ideas on ultra low power Pyboard systems](https://github.com/peterhinch/micropython-micropower.git).
 
 Further sources of information:  
-[device data and interface timing](http://www.pervasivedisplays.com/products/27).  
+[device datasheet](https://www.embeddedartists.com/wp-content/uploads/2018/06/1P053-00_04_EM027BS013_20140819.pdf).  
 [COG interface timing](https://www.embeddedartists.com/wp-content/uploads/2018/06/4P015-00_01_G2_V230_COG_Driver_Interface_Timing_for_smallsize_20140128.pdf).  
 [Flash device data](http://www.elinux.org/images/f/f5/Winbond-w25q32.pdf) (EA device only).  
 [RePaper](http://repaper.org/doc/cog_driving.html). This link is broken:
