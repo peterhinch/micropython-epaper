@@ -1,6 +1,16 @@
 # micropython-epaper
 
-A driver to enable the Pyboard to access a 2.7 inch e-paper display from
+## 17th Jan 2021 Warning
+
+Both the Embedded Artists and the Adafruit modules now appear to be obsolete.
+New users are advised to go to
+[micropython-nano-gui](https://github.com/peterhinch/micropython-nano-gui)
+which now supports two ePaper displays. Drivers for Waveshare displays may also
+be found [here](https://github.com/mcauser/micropython-waveshare-epaper).
+
+# The driver
+
+The driver enables the Pyboard to access a 2.7 inch e-paper display from
 [Embedded Artists](http://www.embeddedartists.com/products/displays/lcd_27_epaper.php).
 The onboard Flash memory is optionally supported.
 
